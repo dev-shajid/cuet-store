@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String?
+  role      UserRole  @default(USER)
+  image     String?   @default("https://cdn.icon-icons.com/icons2/1378/PNG/512/avatardefault_92824.png")
+  products  Product[] @relation("UserToProduct")
+  addresses Address[]
+  orders    Order[]
+  reviews   Review[]
+
+  created_at DateTime @default(now())
+}
+
+model Category {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  description String        @default("")
+  is_featured Boolean       @default(false) @db.Boolean
+  parent_name String?
+  image       String?
+  status      PublishStatus @default(ACTIVE)
+  parent      Category?     @relation("CategoryToParent", fields: [parent_name], references: [name])
+  children    Category[]    @relation("CategoryToParent")
+  products    Product[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  name          String
+  description   String?        @default("")
+  is_featured   Boolean        @default(false) @db.Boolean
+  price         Float          @default(0)
+  stock         Int            @default(0)
+  status        PublishStatus  @default(ACTIVE)
+  category_name String
+  category      Category       @relation(fields: [category_name], references: [name])
+  seller_email  String
+  seller        User           @relation("UserToProduct", fields: [seller_email], references: [email])
+  images        ProductMedia[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+  offers        Offer[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model ProductMedia {
+  id         String  @id @default(cuid())
+  url        String
+  product_id String
+  product    Product @relation(fields: [product_id], references: [id])
+
+  created_at DateTime @default(now())
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  user_id      String
+  user         User        @relation(fields: [user_id], references: [id])
+  user_phone   String
+  status       OrderStatus @default(PENDING)
+  total_amount Float       @default(0)
+  address      String
+  order_items  OrderItem[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  order_id     String
+  order        Order    @relation(fields: [order_id], references: [id])
+  product_id   String
+  product      Product  @relation(fields: [product_id], references: [id])
+  product_name String
+  status       OrderStatus @default(PENDING)
+  quantity     Int      @default(1)
+  price        Float    @default(0)
+  total_amount Float    @default(0)
+  created_at   DateTime @default(now())
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  product_id String
+  product    Product  @relation(fields: [product_id], references: [id])
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id])
+  rating     Int      @default(0)
+  comment    String?
+  created_at DateTime @default(now())
+}
+
+model Offer {
+  id         String      @id @default(cuid())
+  product_id String
+  product    Product     @relation(fields: [product_id], references: [id])
+  discount   Float       @default(0)
+  start_date DateTime
+  end_date   DateTime
+  status     OfferStatus @default(ACTIVE)
+  created_at DateTime    @default(now())
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  user_id      String
+  user         User     @relation(fields: [user_id], references: [id])
+  full_address String
+  is_default   Boolean  @default(false)
+  created_at   DateTime @default(now())
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELED
+}
+
+enum PublishStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum OfferStatus {
+  ACTIVE
+  EXPIRED
+}
