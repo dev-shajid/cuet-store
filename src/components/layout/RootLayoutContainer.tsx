@@ -12,12 +12,12 @@ export default function RootLayoutContainer({ children }: { children: React.Reac
 
   if (!mounted) return null;
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <SessionProvider>
+    <SessionProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <Toaster />
         <LoadingOverlayProvider />
         {children}
-      </SessionProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </SessionProvider>
   )
 }

@@ -85,8 +85,8 @@ export default function BannerSlides() {
                                         <Image
                                             src={slide.image}
                                             alt={slide.title}
-                                            layout="fill"
-                                            objectFit="contain"
+                                            fill
+                                            style={{ objectFit: "contain" }}
                                         />
                                     </div>
                                 </div>

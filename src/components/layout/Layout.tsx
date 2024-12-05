@@ -2,20 +2,12 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   Loader2,
   Search,
   ShoppingBag,
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -23,18 +15,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import ThemeToggle from "@/components/theme/them-change"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import CategoriesDropdown from "../CategoriesDropdown"
 import PageTransitionLayout from "../PageTransitionLayout"
 import { ProductType } from "@/types/type"
 import { useShoppingCart } from "@/hooks/use-shopping-cart"
-import { signOut, useSession } from "next-auth/react"
+import { useSession } from "next-auth/react"
+import UserMenu from "../UserMenu"
+import Logo from "../Logo"
 
 export default function Component({ children }: React.PropsWithChildren) {
   const [mutate, setMutate] = useState(false)
+  const { status, data } = useSession()
+
+  console.log({ status, data })
 
   useEffect(() => {
     setMutate(true)
@@ -56,8 +51,8 @@ const NavComponent = () => {
   return (
     <section className="sticky top-0 left-0 right-0 z-10 bg-background/70 backdrop-blur-md w-full">
       <header className="flex items-center justify-between w-full gap-4 px-4 py-2 container">
-        <Link className="flex flex-col items-center justify-center bg-foreground text-background rounded-full size-12 font-medium" href="/store">
-          <span>C-B</span>
+        <Link href="/">
+          <Logo />
         </Link>
 
         <CategoriesDropdown />
@@ -75,7 +70,7 @@ const NavItems = () => {
   const totalItems = useShoppingCart(state => state.cartItems.length)
   return (
     <>
-      <Link href="/store/cart" className="relative p-2">
+      <Link href="/cart" className="relative p-2">
         <ShoppingBag size={24} />
         {
           totalItems ?
@@ -90,51 +85,6 @@ const NavItems = () => {
   )
 }
 
-export const UserMenu = () => {
-  const { status } = useSession()
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Avatar>
-          <AvatarImage src="https://github.com/shadcn.png" />
-          <AvatarFallback>CN</AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {
-          status == 'loading' ?
-            <div className="h-5 w-full rounded-sm bg-muted animate-pulse" /> :
-            status == 'authenticated' ?
-              <>
-                <DropdownMenuItem asChild>
-                  <Link href='/dashboard'>
-                    Dashboard
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <div
-                    onClick={() => {
-                      signOut()
-                    }}
-                  >Sign Out</div>
-                </DropdownMenuItem>
-              </> :
-              <DropdownMenuItem asChild>
-                <Link href="/auth/sign-in">Sign In</Link>
-              </DropdownMenuItem>
-        }
-        <DropdownMenuItem asChild>
-          <div className="flex items-center">
-            <ThemeToggle />
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 const SearchComponent = () => {
   const searchParams = useSearchParams()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -144,7 +94,7 @@ const SearchComponent = () => {
 
   const handleSearchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    router.push(`/store/products?search=${searchValue}&limit=20&page=1`)
+    router.push(`/products?search=${searchValue}&limit=20&page=1`)
     setDialogOpen(false)
   }
 

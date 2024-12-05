@@ -3,33 +3,20 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { UserRole } from "./lib/enum";
 import { db } from "./db";
 
-interface AuthenticatedUser {
-    id: string;
-    name: string;
-    email: string;
-    role: UserRole;
-    image: string | null;
-}
-
 export default {
     providers: [
         CredentialsProvider({
             name: "Credentials",
             authorize: async (credentials) => {
-                // try {
-                    if (!credentials?.email) throw new Error("No email provided");
+                if (!credentials?.email) return null; // Invalid email
 
-                    const user = await db.user.findFirst({
-                        where: {
-                            email: credentials.email!,
-                        },
-                    })
+                const user = await db.user.findFirst({
+                    where: {
+                        email: credentials.email!,
+                    },
+                })
 
-                    return user;
-                // } catch (error) {
-                //     console.error("Error in login request:", error);
-                //     return null;
-                // }
+                return user;
             },
         }),
     ],

@@ -1,7 +1,6 @@
 import HeaderTitle from '@/components/HeaderTitle'
 import ProductCard from '@/components/ProductCard'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
-import { products } from '@/lib/data'
 import Link from 'next/link'
 import Image from 'next/image'
 import BannerSlides from '@/components/BannerSlides'
@@ -34,7 +33,7 @@ export default function StorePage() {
 
         <Card className='bg-transparent border-none w-full'>
           <CardHeader>
-            <HeaderTitle url='/store/products'>Featured Products</HeaderTitle>
+            <HeaderTitle url='/products'>Featured Products</HeaderTitle>
           </CardHeader>
           <CardContent>
             <Suspense fallback={<FallbackFeaturedProducts />} >
@@ -67,8 +66,8 @@ async function FeaturedCategories() {
                       <Image
                         src={category.image}
                         alt={category.name}
-                        layout="fill"
-                        objectFit="cover"
+                        fill
+                        style={{ objectFit: 'cover' }}
                       />
                     ) : null
                   }

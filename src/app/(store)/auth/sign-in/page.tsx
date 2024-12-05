@@ -25,12 +25,15 @@ import { login } from '@/lib/action'
 import { useLoadingOverlay } from '@/hooks/use-loading-overlay'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import wait from '@/lib/utils'
 
 
 export default function LoginForm() {
     const { onClose, onOpen } = useLoadingOverlay()
     const [error, setError] = useState<string>('')
     const callbackUrl = new URLSearchParams(window.location.search).get('callback') || '/'
+    const router = useRouter()
 
     const form = useForm<z.infer<typeof LoginSchema>>({
         resolver: zodResolver(LoginSchema),
@@ -43,14 +46,20 @@ export default function LoginForm() {
     async function onSubmit(values: z.infer<typeof LoginSchema>) {
         onOpen()
         const res = await login(values, callbackUrl)
-        if(!res.success) {
+        console.log(res)
+        if (res.success) {
+            window.location.replace(callbackUrl)
+        }else{
             setError(res.message)
         }
         onClose()
     }
 
     useEffect(() => {
-        return () => onClose()
+        return () => {
+            onClose()
+            // router.refresh()
+        }
     }, [])
 
     return (
@@ -119,11 +128,13 @@ export default function LoginForm() {
                             Sign up
                         </Link>
                     </p>
-                    <Alert className='bg-destructive/30 border border-red-500 text-red-500'>
-                        <AlertDescription className='flex gap-2 items-center'>
-                            <AlertCircle/> {error}
-                        </AlertDescription>
-                    </Alert>
+                    {error ?
+                        <Alert className='bg-destructive/30 border border-red-500 text-red-500'>
+                            <AlertDescription className='flex gap-2 items-center'>
+                                <AlertCircle /> {error}
+                            </AlertDescription>
+                        </Alert> : null
+                    }
                 </CardFooter>
             </Card>
         </div>

@@ -15,7 +15,7 @@ export const privateRoute:string[] = [
     '/profile',
     '/settings',
     '/settings/*',
-    '/store/checkout',
+    '/checkout',
 ]
 
 /*
@@ -42,7 +42,7 @@ export const apiAuthPrefix = '/api/auth'
 * This route is used when the user is redirected after a successful login
 * @type {string}
 */
-export const DEFAUTL_AUTH_REDIRECT = '/store'
+export const DEFAUTL_AUTH_REDIRECT = '/'
 
 /*
 * The default redirect route if unauthorized

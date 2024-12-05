@@ -1,4 +1,5 @@
-import PublicLayout from "@/components/layout/PublicLayout"
+import Layout from "@/components/layout/Layout"
+
 
 export const metadata = {
   title: 'CUET E-Bazar',
@@ -12,9 +13,9 @@ export default function AuthLayout({
 }) {
   return (
     <>
-      <PublicLayout>
+      <Layout>
         {children}
-      </PublicLayout>
+      </Layout>
     </>
   )
 }

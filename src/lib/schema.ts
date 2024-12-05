@@ -54,3 +54,13 @@ export const CheckoutSchema = z.object({
         new: z.boolean().default(false),
     })
 });
+
+export const SliderContentSchema = z.object({
+    title: z.string({ message: "Title is required" }).min(1, "Title is required"),
+    description: z.string().optional().default(""),
+    tag: z.string({ message: "Tag is required" }).min(1, "Tag is required"),
+    product_id: z.string({ message: "Product ID is required" }).min(1, "Product ID is required"),
+    status: z.enum(["ACTIVE", "INACTIVE"]).default("INACTIVE"),
+    start_at: z.date().default(new Date()),
+    end_at: z.date().default(new Date()),
+});

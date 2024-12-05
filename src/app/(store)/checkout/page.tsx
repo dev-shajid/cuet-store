@@ -24,6 +24,7 @@ import { useLoadingOverlay } from '@/hooks/use-loading-overlay'
 import { useRouter } from 'next/navigation'
 import { OrderAddress } from '@/types/type'
 import { formatCurrency } from '@/lib/utils'
+import { DEFAUTL_AUTH_REDIRECT } from '@/routes'
 
 
 
@@ -72,7 +73,7 @@ export default function CheckoutPage() {
             })
             if (res.success) {
                 clearCart()
-                router.push(`/store`)
+                router.push(`${DEFAUTL_AUTH_REDIRECT}`)
             }
         } catch (error) {
             toast({

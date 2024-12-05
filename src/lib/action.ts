@@ -4,13 +4,14 @@ import { TableDataType, DataTableQueryProps, CartItem, OrderAddress } from "@/ty
 import ApiResponse, { ApiResponseType } from "./ApiResponse";
 import AsyncHandler from "./AsyncHandler";
 import { z } from "zod";
-import { CategorySchema, LoginSchema, ProductSchema, SignupSchema } from "./schema";
+import { CategorySchema, LoginSchema, ProductSchema, SignupSchema, SliderContentSchema } from "./schema";
 import { db } from "@/db";
 import wait, { comparePassword, hashPassword } from "./utils";
-import { auth, signIn } from "@/auth";
-import { Category, Order, OrderItem, Product, User, UserRole } from "@prisma/client";
+import { auth, signIn, signOut } from "@/auth";
+import { Category, Order, OrderItem, Product, PublishStatus, SliderContent, User, UserRole } from "@prisma/client";
 import { products } from "./product-seed";
 import { DEFAUTL_AUTH_REDIRECT } from "@/routes";
+import { revalidatePath } from "next/cache";
 
 export const getAuthUser = AsyncHandler(async (checkRole: UserRole[] = [], include?: { [key: string]: boolean }): Promise<ApiResponseType<Partial<User> | null>> => {
     const session = await auth();
@@ -36,39 +37,33 @@ export const getAuthUser = AsyncHandler(async (checkRole: UserRole[] = [], inclu
 })
 
 export const login = async (credentials: z.infer<typeof LoginSchema>, callback: string = DEFAUTL_AUTH_REDIRECT): Promise<ApiResponseType<User | undefined>> => {
+    const validateFields = LoginSchema.safeParse(credentials)
+
+    if (!validateFields.success) return ApiResponse(400, "Invalid Credentials")
+
+    const { email, password } = validateFields.data
+
+    const user = await db.user.findFirst({
+        where: {
+            email
+        }
+    })
+    if (!user) return ApiResponse(400, "User not found");
+
+    if (!(await comparePassword(credentials.password, user.password))) return ApiResponse(400, "Invalid password");
     try {
-        const validateFields = LoginSchema.safeParse(credentials)
-
-        if (!validateFields.success) return ApiResponse(400, "Invalid Credentials")
-
-        const { email, password } = validateFields.data
-
-        const user = await db.user.findFirst({
-            where: {
-                email
-            }
-        })
-        if (!user) return ApiResponse(400, "User not found");
-
-        if (!(await comparePassword(credentials.password, user.password))) return ApiResponse(400, "Invalid password");
-
-        console.log({ callback })
         await signIn(
             "credentials",
             {
                 email: email,
                 password: password,
-                redirect: true,
-                redirectTo: callback,
+                redirect: false,
             },
         );
 
         return ApiResponse(200, "Login successful");
     } catch (error) {
         console.log({ LoginError: error })
-        // if (error instanceof Error) {
-        //     return ApiResponse(500, error.message)
-        // }
         throw error
     }
 }
@@ -91,6 +86,7 @@ export const signup = AsyncHandler(async (values: z.infer<typeof SignupSchema>):
 
     return ApiResponse(200, "User created successfully", newUser)
 })
+
 
 export const getCategories = AsyncHandler(async (
     query: DataTableQueryProps,
@@ -260,7 +256,7 @@ export const getProducts = AsyncHandler(async (query: DataTableQueryProps & { ca
 
     const categories = query?.categories ?? null;
 
-    console.log({ sort_by, sort_order, limit, page, onlyPublished, featured, categories })
+    // console.log({ sort_by, sort_order, limit, page, onlyPublished, featured, categories })
 
     include = {
         ...include,
@@ -969,3 +965,156 @@ export const getCustomer = AsyncHandler(async (id: string): Promise<ApiResponseT
 
     return ApiResponse(200, "Customer found", customer);
 });
+
+
+
+
+export async function createSliderContent(data: z.infer<typeof SliderContentSchema>) {
+    const user = await getAuthUser([UserRole.ADMIN]);
+    if (!user.success) return ApiResponse(403, "Only admins can create slider content");
+
+    const sliderContent = await db.sliderContent.create({
+        data: {
+            title: data.title!,
+            description: data.description!,
+            tag: data.tag!,
+            product_id: data.product_id ?? "",
+            start_at: data.start_at ?? new Date(),
+            end_at: data.end_at ?? new Date(),
+            status: data.status ?? "INACTIVE"
+        },
+    });
+
+    return ApiResponse(201, "Slider content created", sliderContent);
+}
+
+export async function updateSliderContent(id: string, data: z.infer<typeof SliderContentSchema>) {
+    const user = await getAuthUser([UserRole.ADMIN]);
+    if (!user.success) return ApiResponse(403, "Only admins can update slider content");
+
+    await db.sliderContent.update({
+        where: { id },
+        data: {
+            title: data.title!,
+            description: data.description!,
+            tag: data.tag!,
+            product_id: data.product_id ?? "",
+            start_at: data.start_at ?? new Date(),
+            end_at: data.end_at ?? new Date(),
+            status: data.status ?? "INACTIVE"
+        },
+    });
+
+    return ApiResponse(200, "Slider content updated");
+
+}
+
+export async function deleteSliderContent(id: string) {
+    const user = await getAuthUser([UserRole.ADMIN]);
+    if (!user.success) return ApiResponse(403, "Only admins can delete slider content");
+
+    await db.sliderContent.delete({
+        where: { id },
+    });
+
+    return ApiResponse(200, "Slider content deleted");
+}
+
+
+export const getSlidersContent = AsyncHandler(async (
+    query: DataTableQueryProps & { admin?: boolean },
+): Promise<ApiResponseType<TableDataType<SliderContent> | null>> => {
+    const search = query?.search ?? null;
+    const sort_by = query?.sort_by ?? "start_at";
+    const sort_order = query?.sort_order ?? "asc";
+    const limit = Number(query?.limit ?? 10);
+    const page = Number(query?.page ?? 1);
+
+    // Search functionality
+    let whereClause = {};
+
+    if (search) {
+        whereClause = {
+            ...whereClause,
+            title: { contains: search, mode: "insensitive" },
+        };
+    }
+    if (!query?.admin) {
+        whereClause = {
+            ...whereClause,
+            status: PublishStatus.ACTIVE,
+            start_at: {
+                lte: new Date(),
+            },
+            end_at: {
+                gte: new Date(),
+            },
+        }
+    }
+
+    // Sorting functionality
+    const orderByClause = {
+        [sort_by]: sort_order.toLowerCase() === "asc" ? "asc" : "desc",
+    };
+
+    // Pagination calculations
+    const offset = (page - 1) * limit;
+
+    // Fetch data from the database
+    const [sliders, total_count] = await Promise.all([
+        db.sliderContent.findMany({
+            where: whereClause,
+            orderBy: orderByClause,
+            skip: offset,
+            take: Number(limit),
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                tag: true,
+                product_id: true,
+                product: {
+                    select: {
+                        name: true,
+                        images: true,
+                    }
+                },
+                start_at: true,
+                end_at: true,
+                status: true,
+                created_at: true,
+            },
+        }),
+        db.sliderContent.count({
+            where: whereClause,
+        }),
+    ]);
+
+    // Pagination info
+    const total_pages = Math.ceil(total_count / limit);
+    const has_next = page < total_pages;
+    const has_previous = page > 1;
+
+    // Build the response structure
+    const response_data: TableDataType<SliderContent> = {
+        data: sliders,
+        totalCounts: total_count,
+        totalPages: total_pages,
+        hasNextPage: has_next,
+        hasPreviousPage: has_previous,
+        nextPage: page + 1,
+        previousPage: page - 1,
+    };
+
+    return ApiResponse(200, "Sliders retrieved successfully", response_data);
+});
+
+export async function getSliderContent(id: string): Promise<ApiResponseType<SliderContent>> {
+    const slider = await db.sliderContent.findUnique({
+        where: { id },
+    });
+
+    if (!slider) return ApiResponse(404, "Slider not found");
+
+    return ApiResponse(200, "Slider found", slider);
+}

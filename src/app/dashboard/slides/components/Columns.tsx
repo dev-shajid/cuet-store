@@ -3,14 +3,21 @@
 import React from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
-import Image from 'next/image'
-import BlurImage from '@/components/BlurImage'
-import { PublishStatus } from '@prisma/client'
+import { SliderContent, PublishStatus } from '@prisma/client'
+
+// interface SliderContent extends PrismaSliderContent {
+//     product: Product
+// }
 import { cn } from '@/lib/utils'
+import BlurImage from '@/components/BlurImage'
 import { Product } from '@/types/type'
 
 
-export const columns: ColumnDef<Product>[] = [
+export const columns: ColumnDef<Partial<SliderContent & { product: Product }>>[] = [
+    {
+        accessorKey: "title",
+        header: "Title",
+    },
     {
         accessorKey: "name",
         header: ({ column }) => (
@@ -19,36 +26,50 @@ export const columns: ColumnDef<Product>[] = [
             </div>
         ),
         cell: ({ row }) => <div className='flex flex-col items-center gap-3'>
-            {row.original.images.length ?
+            {row.original?.product?.images?.length ?
                 <div className='border border-input rounded-md'>
                     <BlurImage
-                        src={row.original.images[0].url}
+                        src={row.original?.product?.images[0]?.url}
                         alt={'product-image'}
                         className="rounded-md size-12"
                     />
                 </div> :
                 null
             }
-            <span>{row.original.name}</span>
         </div>,
     },
     {
-        accessorKey: "description",
-        header: "Description",
-    },
-    {
-        accessorKey: "category_name",
+        accessorKey: "productName",
         header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Category" />
+            <div className='flex justify-center'>
+                <DataTableColumnHeader column={column} title="Product Name" />
+            </div>
         ),
+        cell: ({ row }) => <div>{row.original.product?.name ?? ''}</div>,
     },
     {
-        accessorKey: "price",
-        header: "Price",
+        accessorKey: "start_at",
+        header: ({ column }) => (
+            <div className='flex justify-center'>
+                <DataTableColumnHeader column={column} title="Start" />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const date = row.original?.start_at as Date;
+            return <div>{new Date(date).toLocaleDateString()}</div>
+        }
     },
     {
-        accessorKey: "stock",
-        header: "Stock",
+        accessorKey: "end_at",
+        header: ({ column }) => (
+            <div className='flex justify-center'>
+                <DataTableColumnHeader column={column} title="End" />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const date = row.original?.end_at as Date;
+            return <div>{new Date(date).toLocaleDateString()}</div>
+        }
     },
     {
         accessorKey: "status",
@@ -63,21 +84,6 @@ export const columns: ColumnDef<Product>[] = [
                     status === PublishStatus.ACTIVE ? "bg-green-500/20 border border-green-500/40 text-green-500" : "bg-red-500/20 border border-red-500/40 text-red-500"
                 )}>
                     {status === PublishStatus.ACTIVE ? "Active" : "Inactive"}
-                </span>
-            )
-        },
-    },
-    {
-        accessorKey: "is_featured",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Featured" />
-        ),
-        cell: ({ row }) => {
-            const featured: boolean = row.getValue("is_featured");
-            console.log(featured)
-            return (
-                <span>
-                    {featured ? '✅' : "❌"}
                 </span>
             )
         },
