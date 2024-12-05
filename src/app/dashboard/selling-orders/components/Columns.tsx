@@ -28,18 +28,18 @@ export const columns: ColumnDef<Partial<Order>>[] = [
             <span>{formatCurrency(row.getValue("total_amount"))}</span>
         ),
     },
-    {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => {
-            const status = row.getValue("status") as OrderStatus;
-            return (
-                <Badge variant="outline" className={`capitalize ${GetStatusClass(status)}`}>
-                    {status}
-                </Badge>
-            )
-        },
-    },
+    // {
+    //     accessorKey: "status",
+    //     header: "Status",
+    //     cell: ({ row }) => {
+    //         const status = row.getValue("status") as OrderStatus;
+    //         return (
+    //             <Badge variant="outline" className={`capitalize ${GetStatusClass(status)}`}>
+    //                 {status}
+    //             </Badge>
+    //         )
+    //     },
+    // },
     {
         accessorKey: "created_at",
         header: ({ column }) => (
@@ -49,9 +49,4 @@ export const columns: ColumnDef<Partial<Order>>[] = [
             <span>{new Date(row.getValue("created_at")).toLocaleDateString()}</span>
         ),
     },
-    // {
-    //     id: "actions",
-    //     cell:({row})=> <CellAction data={row.original} />,
-    //     header: ()=><FileEdit size={16} />,
-    // },
 ]

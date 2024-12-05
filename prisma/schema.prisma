@@ -39,19 +39,20 @@ model Category {
 }
 
 model Product {
-  id            String         @id @default(cuid())
+  id            String          @id @default(cuid())
   name          String
-  description   String?        @default("")
-  is_featured   Boolean        @default(false) @db.Boolean
-  price         Float          @default(0)
-  stock         Int            @default(0)
-  status        PublishStatus  @default(ACTIVE)
+  description   String?         @default("")
+  is_featured   Boolean         @default(false) @db.Boolean
+  price         Float           @default(0)
+  stock         Int             @default(0)
+  status        PublishStatus   @default(ACTIVE)
   category_name String
-  category      Category       @relation(fields: [category_name], references: [name])
+  category      Category        @relation(fields: [category_name], references: [name])
   seller_email  String
-  seller        User           @relation("UserToProduct", fields: [seller_email], references: [email])
+  seller        User            @relation("UserToProduct", fields: [seller_email], references: [email])
   images        ProductMedia[]
   orderItems    OrderItem[]
+  slides        SliderContent[]
   reviews       Review[]
   offers        Offer[]
 
@@ -83,17 +84,17 @@ model Order {
 }
 
 model OrderItem {
-  id           String   @id @default(cuid())
+  id           String      @id @default(cuid())
   order_id     String
-  order        Order    @relation(fields: [order_id], references: [id])
+  order        Order       @relation(fields: [order_id], references: [id])
   product_id   String
-  product      Product  @relation(fields: [product_id], references: [id])
+  product      Product     @relation(fields: [product_id], references: [id])
   product_name String
   status       OrderStatus @default(PENDING)
-  quantity     Int      @default(1)
-  price        Float    @default(0)
-  total_amount Float    @default(0)
-  created_at   DateTime @default(now())
+  quantity     Int         @default(1)
+  price        Float       @default(0)
+  total_amount Float       @default(0)
+  created_at   DateTime    @default(now())
 }
 
 model Review {
@@ -112,9 +113,10 @@ model Offer {
   product_id String
   product    Product     @relation(fields: [product_id], references: [id])
   discount   Float       @default(0)
-  start_date DateTime
-  end_date   DateTime
+  start_at DateTime
+  end_at   DateTime
   status     OfferStatus @default(ACTIVE)
+
   created_at DateTime    @default(now())
 }
 
@@ -125,6 +127,20 @@ model Address {
   full_address String
   is_default   Boolean  @default(false)
   created_at   DateTime @default(now())
+}
+
+model SliderContent {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  tag         String
+  product_id  String
+  product     Product       @relation(fields: [product_id], references: [id])
+  status      PublishStatus @default(INACTIVE)
+  start_at    DateTime      @default(now())
+  end_at      DateTime      @default(now())
+
+  created_at DateTime @default(now())
 }
 
 enum UserRole {

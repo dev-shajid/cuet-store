@@ -11,19 +11,14 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   pages: {
     signIn: '/auth/login',
     error: '/auth/error',
-    newUser: '/profile'
   },
   session: { strategy: "jwt" },
   ...authConfig,
   callbacks: {
-    async signIn({ user, account }) {
-      return true
-    },
     async jwt(data) {
       const { token, user, trigger, session } = data
 
       if (trigger === 'update') {
-        console.log({ ...session })
         return {
           ...token,
           ...session

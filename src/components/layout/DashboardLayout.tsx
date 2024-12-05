@@ -4,16 +4,12 @@ import React from 'react'
 import { useState } from "react"
 import PageTransitionLayout from '../PageTransitionLayout'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import ThemeToggle from "@/components/theme/them-change"
 import DashboardSidebar from '../DashboardSidebar'
 import { Button } from '../ui/button'
 import { Menu } from 'lucide-react'
-import { SessionProvider, signOut, useSession } from 'next-auth/react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import Link from 'next/link'
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
-import { ToastProvider } from '../ui/toast'
+import { SessionProvider } from 'next-auth/react'
 import useMounted from '@/hooks/use-mounted'
+import UserMenu from '../UserMenu'
 
 interface NavComponentProps {
     open: boolean
@@ -23,9 +19,6 @@ interface NavComponentProps {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [open, setOpen] = useState<boolean>(false)
     const mutate = useMounted()
-
-    // const { data } = useSession()
-    // console.log({ data })
 
     if (!mutate) return null;
     return (
@@ -82,44 +75,5 @@ const DashboardSidebarMobile = ({ open, setOpen }: NavComponentProps) => {
                 </SheetContent>
             </Sheet>
         </header>
-    )
-}
-
-
-
-const UserMenu = () => {
-    const { data } = useSession()
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger className='outline-none'>
-                <Avatar>
-                    <AvatarImage src="https://github.com/shadcn.png" />
-                    <AvatarFallback>CN</AvatarFallback>
-                </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-                <>
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuLabel className='text-xs text-muted-foreground font-extralight'>{data?.user?.name}</DropdownMenuLabel>
-                </>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                    <Link href='/store'>
-                        Shop
-                    </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                    <div
-                        onClick={() => {
-                            signOut()
-                        }}
-                    >Sign Out</div>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild>
-                    <ThemeToggle />
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
     )
 }

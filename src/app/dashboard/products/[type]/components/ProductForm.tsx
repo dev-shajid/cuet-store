@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 import { createProduct, deleteProduct, deleteProductImage, getCategories, seedProducts, updateProduct } from '@/lib/action'
 import { ProductSchema } from '@/lib/schema'
 import { cn } from '@/lib/utils'
-import { ImageType } from '@/types/type'
+import { ImageType, Product } from '@/types/type'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Category, ProductMedia, PublishStatus } from '@prisma/client'
 import { Check, ChevronsUpDown, ImagePlusIcon, TrashIcon, UploadCloudIcon } from 'lucide-react'
@@ -22,7 +22,6 @@ import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { useForm, UseFormReturn } from 'react-hook-form'
 import * as z from 'zod'
-import { Product } from '../../page'
 import { CldUploadWidget, CloudinaryUploadWidgetResults } from 'next-cloudinary';
 import Image from 'next/image'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -394,43 +393,6 @@ export default function ProductForm({ initialProduct }: ProductFormProps) {
 }
 
 function ProductCategoryInputField({ form }: { form: UseFormReturn<ProductFormValues> }) {
-    // const categories = [{
-    //     label: "English",
-    //     value: "en"
-    // },
-    // {
-    //     label: "French",
-    //     value: "fr"
-    // },
-    // {
-    //     label: "German",
-    //     value: "de"
-    // },
-    // {
-    //     label: "Spanish",
-    //     value: "es"
-    // },
-    // {
-    //     label: "Portuguese",
-    //     value: "pt"
-    // },
-    // {
-    //     label: "Russian",
-    //     value: "ru"
-    // },
-    // {
-    //     label: "Japanese",
-    //     value: "ja"
-    // },
-    // {
-    //     label: "Korean",
-    //     value: "ko"
-    // },
-    // {
-    //     label: "Chinese",
-    //     value: "zh"
-    // },
-    // ] as const;
 
     const [categories, setCategories] = useState<Partial<Category[]>>([])
 

@@ -11,6 +11,7 @@ import {
 import { usePathname } from "next/navigation"
 import React from "react"
 import { cn } from "@/lib/utils"
+import Logo from "./Logo"
 
 interface NavComponentProps {
     open: boolean
@@ -24,8 +25,8 @@ export default function DashboardSidebar({ setOpen }: NavComponentProps) {
         <>
             <div className="flex h-full max-h-screen flex-col gap-2">
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                    <Link onClick={() => setOpen(false)} href="/dashboard" className="flex items-center gap-2 font-bold bg-accent-foreground text-muted size-11 rounded-full justify-center">
-                        NXT
+                    <Link onClick={() => setOpen(false)} href="/dashboard">
+                        <Logo/>
                     </Link>
                 </div>
                 <div className="flex-1 flex flex-col justify-between px-1 gap-1 text-sm font-medium lg:px-4 pb-6">
@@ -59,6 +60,11 @@ const MenuItems = [
         label: 'Home',
         url: '/dashboard',
         icon: Home,
+    },
+    {
+        label: 'Slides',
+        url: '/dashboard/slides',
+        icon: BookMarkedIcon,
     },
     {
         label: 'Categories',

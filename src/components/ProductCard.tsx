@@ -30,7 +30,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
             </CardContent>
             <CardFooter className="py-2 sm:px-4 px-3 bg-muted/40 flex-1">
                 <div className="flex flex-col w-full space-y-[4px]">
-                    <Link href={`/store/products/${product.id}`} className="block hover:text-primary transition-colors cursor-pointer">
+                    <Link href={`/products/${product.id}`} className="block hover:text-primary transition-colors cursor-pointer">
                         {product.name.length > 20 ? `${product.name.slice(0, 20)}...` : product.name}
                     </Link>
                     <span className='text-muted-foreground text-sm'>{product.category_name}</span>

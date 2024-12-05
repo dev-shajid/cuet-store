@@ -97,7 +97,7 @@ function CartSummary({ subtotal, discount }: CartSummaryProps) {
                             <span className='text-muted-foreground'>Total</span>
                             <span>{formatCurrency(subtotal - discount)}</span>
                         </div>
-                        <LinkButton href='/store/checkout' className="w-full h-8">Checkout</LinkButton>
+                        <LinkButton href='/checkout' className="w-full h-8">Checkout</LinkButton>
                     </div>
                 </CardContent>
             </Card>
