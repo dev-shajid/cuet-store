@@ -2,11 +2,7 @@
 
 import React from 'react'
 import { ColumnDef } from '@tanstack/react-table'
-import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
-import { Order, OrderStatus } from '@prisma/client'
-import { formatCurrency } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import GetStatusClass from '@/components/GetStatusClass'
+import { Order } from '@prisma/client'
 
 export const columns: ColumnDef<Partial<Order>>[] = [
     {
@@ -23,9 +19,7 @@ export const columns: ColumnDef<Partial<Order>>[] = [
     },
     {
         accessorKey: "created_at",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Created At" />
-        ),
+        header: "Created At",
         cell: ({ row }) => (
             <span>{new Date(row.getValue("created_at")).toLocaleDateString()}</span>
         ),

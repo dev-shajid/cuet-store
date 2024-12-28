@@ -8,6 +8,7 @@ import { Order, OrderItem, OrderStatus } from '@prisma/client';
 import { OrderDetails } from '@/types/type';
 import GetStatusClass from '@/components/GetStatusClass';
 import BlurImage from '@/components/BlurImage';
+import Link from 'next/link';
 
 const BuyingOrderForm = ({ order }: { order: OrderDetails }) => {
     if (order === null) return null;
@@ -78,7 +79,11 @@ const BuyingOrderForm = ({ order }: { order: OrderDetails }) => {
                         <TableBody>
                             {order?.order_items.map((item) => (
                                 <TableRow key={item.id}>
-                                    <TableCell>{item.product_name}</TableCell>
+                                    <TableCell>
+                                        <Link target='_blank' className='text-blue-400' href={`/products/${item.product.id}`}>
+                                            {item.product_name}
+                                        </Link>
+                                    </TableCell>
                                     <TableCell>
                                         {
                                             item.product.images?.[0]?.url ?

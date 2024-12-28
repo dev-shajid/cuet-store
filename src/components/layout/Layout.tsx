@@ -11,6 +11,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -19,17 +20,24 @@ import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import CategoriesDropdown from "../CategoriesDropdown"
 import PageTransitionLayout from "../PageTransitionLayout"
-import { ProductType } from "@/types/type"
+import { DataTableQueryProps, Product, ProductType, TableDataType } from "@/types/type"
 import { useShoppingCart } from "@/hooks/use-shopping-cart"
 import { useSession } from "next-auth/react"
 import UserMenu from "../UserMenu"
 import Logo from "../Logo"
+import { ApiResponseType } from "@/lib/ApiResponse"
+import { toast } from "@/hooks/use-toast"
+import { getProducts } from "@/lib/action"
+import { ScrollArea } from "../ui/scroll-area"
+import useDebounce from "@/hooks/use-debounce"
+import { formatCurrency } from "@/lib/utils"
+import BlurImage from "../BlurImage"
 
 export default function Component({ children }: React.PropsWithChildren) {
   const [mutate, setMutate] = useState(false)
   const { status, data } = useSession()
 
-  console.log({ status, data })
+  // console.log({ status, data })
 
   useEffect(() => {
     setMutate(true)
@@ -55,7 +63,10 @@ const NavComponent = () => {
           <Logo />
         </Link>
 
-        <CategoriesDropdown />
+        <div className="flex items-center gap-4">
+          <CategoriesDropdown />
+          <Link href="/products?limit=10&page=1">Products</Link>
+        </div>
 
         <nav className="ml-auto gap-4 sm:gap-6 items-center flex">
           <SearchComponent />
@@ -89,8 +100,10 @@ const SearchComponent = () => {
   const searchParams = useSearchParams()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchValue, setSearchValue] = useState(searchParams.get('search') ?? '')
-  const [searchResults,] = useState<ProductType[]>([])
-  const [isLoading,] = useState(false)
+  const [searchResults, setSearchResults] = useState<Product[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const router = useRouter()
 
   const handleSearchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -98,7 +111,54 @@ const SearchComponent = () => {
     setDialogOpen(false)
   }
 
-  const router = useRouter()
+  const fetchProducts = async (value: string = '') => {
+    try {
+      setIsLoading(true)
+      const query: DataTableQueryProps & { categories?: string[] } = {
+        limit: Number(searchParams.get('limit') ?? 10),
+        page: Number(searchParams.get('page') ?? 1),
+        categories: searchParams.get('categories')?.split(','),
+      }
+      if (value) query.search = value
+
+      const sort = searchParams.get('sort')
+      if (sort) {
+        query.sort_by = 'price'
+        query.sort_order = (sort == 'price_asc' ? 'asc' : 'desc') as 'desc' | 'asc'
+      }
+
+      const res: ApiResponseType<TableDataType<Product>> = await getProducts(query)
+      if (res.success && res.data) setSearchResults(res.data.data)
+      else {
+        toast({
+          title: '❌ Error',
+          description: res.message
+        })
+      }
+      console.log(res.data)
+    } catch (error) {
+      toast({
+        title: '❌ Error',
+        description: error instanceof Error ? error?.message : 'Something went wrong'
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const debounceFetchProducts = useDebounce((value: string = '') => {
+    fetchProducts(value)
+  }, 500)
+
+  useEffect(() => {
+    fetchProducts(searchParams.get('search')!)
+  }, [searchParams])
+
+  useEffect(() => {
+    if (dialogOpen) {
+      fetchProducts()
+    }
+  }, [dialogOpen])
 
   return (
     <>
@@ -106,7 +166,7 @@ const SearchComponent = () => {
         <DialogTrigger asChild>
           <Search size={20} className="cursor-pointer" />
         </DialogTrigger>
-        <DialogContent className="top-[20%] p-0">
+        <DialogContent className="p-0 top-[20%] translate-y-0">
           <DialogHeader className="">
             <DialogTitle className="hidden">
             </DialogTitle>
@@ -120,7 +180,11 @@ const SearchComponent = () => {
                   placeholder="Search for products"
                   className="border-none focus-visible:ring-0 px-0 py-0"
                   value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
+                  onChange={(e) => {
+                    setSearchValue(e.target.value)
+                    setIsLoading(true)
+                    debounceFetchProducts(e.target.value)
+                  }}
                 />
                 <Button
                   type="submit"
@@ -133,23 +197,39 @@ const SearchComponent = () => {
               </form>
             </div>
           </DialogHeader>
-
-          {searchValue ?
-            <div className="px-4 pb-4">
-              {
-                isLoading ?
-                  <Loader2 size={20} className="mx-auto text-muted-foreground animate-spin" /> :
-                  !searchResults.length ?
-                    <p className="text-muted-foreground text-center">No results found</p> :
-                    searchResults.map((product, index) => (
-                      <div key={index}>
-
-                      </div>
+          <ScrollArea className="max-h-[300px]">
+            <DialogFooter className="px-4 pb-4">
+              {/* <div> */}
+              {isLoading ? (
+                <Loader2 size={20} className="mx-auto text-muted-foreground animate-spin" />
+              ) : !searchResults.length ? (
+                <p className="text-muted-foreground text-center">No results found</p>
+              ) : (
+                <div className="w-full grid gap-2">
+                  {
+                    searchResults.map((product) => (
+                      <Link
+                        href={`/products/${product.id}`}
+                        onClick={() => setDialogOpen(false)}
+                        key={product.id}
+                        className="py-2 transition border border-transparent hover:border hover:bg-muted rounded-md last:border-b-0 flex gap-3"
+                      >
+                        <div>
+                          <BlurImage src={product.images[0].url} alt={product.name} className="size-16" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm">{product.name}</p>
+                          <p className='text-muted-foreground text-xs'>{product.category_name}</p>
+                          <p className="text-sm text-blue-500 font-semibold">{formatCurrency(product.price)}</p>
+                        </div>
+                      </Link>
                     ))
-              }
-            </div> :
-            null
-          }
+                  }
+                </div>
+              )}
+              {/* </div> */}
+            </DialogFooter>
+          </ScrollArea>
 
         </DialogContent>
       </Dialog>

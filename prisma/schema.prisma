@@ -12,12 +12,13 @@ model User {
   email     String    @unique
   password  String
   name      String?
+  phone     String?
   role      UserRole  @default(USER)
   image     String?   @default("https://cdn.icon-icons.com/icons2/1378/PNG/512/avatardefault_92824.png")
   products  Product[] @relation("UserToProduct")
   addresses Address[]
   orders    Order[]
-  reviews   Review[]
+  reviews    Review[]  @relation("UserReviews")
 
   created_at DateTime @default(now())
 }
@@ -78,6 +79,7 @@ model Order {
   total_amount Float       @default(0)
   address      String
   order_items  OrderItem[]
+  reviews      Review[] @relation("OrderToReview")
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -102,9 +104,22 @@ model Review {
   product_id String
   product    Product  @relation(fields: [product_id], references: [id])
   user_id    String
-  user       User     @relation(fields: [user_id], references: [id])
+  user       User     @relation("UserReviews", fields: [user_id], references: [id])
+  order_id   String
+  order      Order    @relation("OrderToReview", fields: [order_id], references: [id])
   rating     Int      @default(0)
   comment    String?
+  images        ReviewMedia[]
+
+  created_at DateTime @default(now())
+}
+
+model ReviewMedia {
+  id         String   @id @default(cuid())
+  url        String
+  review_id  String
+  review     Review   @relation(fields: [review_id], references: [id], onDelete: Cascade)
+
   created_at DateTime @default(now())
 }
 
@@ -113,11 +128,11 @@ model Offer {
   product_id String
   product    Product     @relation(fields: [product_id], references: [id])
   discount   Float       @default(0)
-  start_at DateTime
-  end_at   DateTime
+  start_at   DateTime
+  end_at     DateTime
   status     OfferStatus @default(ACTIVE)
 
-  created_at DateTime    @default(now())
+  created_at DateTime @default(now())
 }
 
 model Address {

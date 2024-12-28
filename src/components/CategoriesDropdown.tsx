@@ -1,14 +1,13 @@
-"use client"
+'use client'
 
 import * as React from "react"
 import Link from "next/link"
-import { Menu, ChevronRight } from 'lucide-react'
-
+import Image from "next/image"
+import { Menu } from 'lucide-react'
 import {
     NavigationMenu,
     NavigationMenuContent,
     NavigationMenuItem,
-    NavigationMenuLink,
     NavigationMenuList,
     NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
@@ -16,146 +15,127 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
-
-const scrollbarHide = "scrollbar-hide";
-
-const categories: { [key: string]: string[] } = {
-    "Other Machinery & Parts": [
-        "Metallic Processing Machinery",
-        "Machinery for Food, Beverage & Cereal",
-        "Laser Equipment",
-        "Mould",
-        "Textile Machinery & Parts",
-        "Cutting & Fold-bend Machine",
-        "Paper Machinery",
-        "Rubber Machinery",
-        "Chemical Equipment & Machinery",
-        "Mixing Equipment",
-        "Machinery for Garment, Shoes & Accessories",
-        "Crushing & Culling Machine",
-    ],
-    "Plastic & Woodworking": [
-        "Plastic Machinery",
-        "Woodworking Machinery",
-        "Blow Molding Machine",
-        "Plastic Recycling Machine",
-        "Injection Molding Machine",
-    ],
-    "Construction Machinery": [
-        "Building Material Making Machinery",
-        "Lifting Equipment",
-        "Excavator",
-        "Concrete Machinery",
-        "Stone Processing Machinery",
-    ],
-    "Agriculture Machinery": [
-        "Agriculture Machinery",
-        "Livestock MachineryFeed",
-        "Feed Processing Machinery",
-        "Tiller",
-        "Harvesting Machine",
-    ],
-    "Machine Tools": [
-        "CNC Machine Tools",
-        "Lathe",
-        "Grinding Machine",
-        "Drilling Machine",
-        "Milling Machine",
-    ],
-}
+import { DataTableQueryProps, TableDataType } from "@/types/type"
+import { getCategories } from "@/lib/action"
+import { Category } from "@prisma/client"
+import { ApiResponseType } from "@/lib/ApiResponse"
 
 export default function CategoriesDropdown() {
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
-    const [activeCategory, setActiveCategory] = React.useState<keyof typeof categories | null>(null)
+    const [categories, setCategories] = React.useState<Category[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        async function fetchCategories() {
+            const query: DataTableQueryProps = { featured: true, limit: 100, onlyPublished: true }
+            const res: ApiResponseType<TableDataType<Category>> = await getCategories(query)
+            if (res.success && res.data) setCategories(res?.data?.data);
+
+            setLoading(false);
+        }
+
+        fetchCategories();
+    }, []);
+
+    if (loading) {
+        return <div className="ml-4 h-5 w-24 rounded-md bg-muted animate-pulse"></div>;
+    }
+
+    if (!categories) {
+        return <div>Failed to load categories</div>;
+    }
 
     return (
         <>
-            {/* Desktop Navigation */}
-            <div className="hidden md:block relative">
-                <NavigationMenu>
-                    <NavigationMenuList>
-                        <NavigationMenuItem>
-                            <NavigationMenuTrigger className="">
-                                <Menu className="mr-2 h-4 w-4" />
-                                Categories
-                            </NavigationMenuTrigger>
-                            <NavigationMenuContent>
-                                <div className="flex">
-                                    <ul className={`w-[200px] p-2 bg-background h-[300px] overflow-y-auto ${scrollbarHide}`}>
-                                        {Object.keys(categories).map((category) => (
-                                            <li key={category}>
-                                                <NavigationMenuLink asChild>
-                                                    <Link
-                                                        href="#"
-                                                        className="px-3 py-2 hover:bg-accent rounded-md text-sm flex items-center justify-between"
-                                                        onMouseEnter={() => setActiveCategory(category)}
-                                                        onFocus={() => setActiveCategory(category)}
-                                                    >
-                                                        {category}
-                                                        <ChevronRight className="h-4 w-4" />
-                                                    </Link>
-                                                </NavigationMenuLink>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    {activeCategory && (
-                                        <div className={`w-[400px] p-4 bg-background border-l h-[300px] overflow-y-auto ${scrollbarHide}`}>
-                                            <h3 className="font-bold text-lg mb-4">{activeCategory}</h3>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {categories[activeCategory].map((subCategory) => (
-                                                    <Link
-                                                        key={subCategory}
-                                                        href="#"
-                                                        className="text-sm text-muted-foreground hover:text-foreground"
-                                                    >
-                                                        {subCategory}
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </NavigationMenuContent>
-                        </NavigationMenuItem>
-                    </NavigationMenuList>
-                </NavigationMenu>
-            </div>
+            <DesktopNavigation categories={categories} />
+            <MobileNavigation categories={categories} />
+        </>
+    )
+}
 
-            {/* Mobile Navigation */}
-            <div className="md:hidden">
-                <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                    <SheetTrigger asChild>
-                        <Button variant="outline">
+function DesktopNavigation({ categories }: { categories: Category[] }) {
+    return (
+        <div className="hidden md:block relative">
+            <NavigationMenu>
+                <NavigationMenuList>
+                    <NavigationMenuItem>
+                        <NavigationMenuTrigger>
                             <Menu className="mr-2 h-4 w-4" />
                             Categories
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="w-[300px] sm:w-[400px] p-0">
-                        <SheetHeader className="px-6 py-4">
-                            <SheetTitle>Categories</SheetTitle>
-                        </SheetHeader>
-                        <Separator />
-                        <ScrollArea className="h-[calc(100vh-80px)] px-6 py-4">
-                            {Object.entries(categories).map(([category, subCategories]) => (
-                                <div key={category} className="mb-6">
-                                    <h5 className="font-semibold mb-2">{category}</h5>
-                                    <ul className="space-y-2">
-                                        {subCategories.map((subCategory) => (
-                                            <li key={subCategory}>
-                                                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                                                    {subCategory}
-                                                </Link>
-                                            </li>
-                                        ))}
-                                    </ul>
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent>
+                            <ScrollArea className="max-h-[300px] overflow-y-auto py-2">
+                                <div className="px-4 pb-4 w-[300px]">
+                                    {categories.map((category) => (
+                                        <Link key={category.id} href={`/products?categories=${category.name}&limit=10&page=1`} className="flex">
+                                            <div className="flex items-center gap-3 p-2 hover:bg-muted transition-all w-full rounded-md">
+                                                <div className="relative size-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                                                    {category.image ? (
+                                                        <Image
+                                                            src={category.image}
+                                                            alt={category.name}
+                                                            width={32}
+                                                            height={32}
+                                                            className="object-cover"
+                                                        />
+                                                    ) : null}
+                                                </div>
+                                                <span className="text-sm font-medium text-center text-card-foreground">
+                                                    {category.name}
+                                                </span>
+                                            </div>
+                                        </Link>
+                                    ))}
                                 </div>
-                            ))}
-                        </ScrollArea>
-                    </SheetContent>
-                </Sheet>
-            </div>
-        </>
+                            </ScrollArea>
+                        </NavigationMenuContent>
+                    </NavigationMenuItem>
+                </NavigationMenuList>
+            </NavigationMenu>
+        </div>
+    )
+}
+
+function MobileNavigation({ categories }: { categories: Category[] }) {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+
+    return (
+        <div className="md:hidden">
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                    <Button variant="outline">
+                        <Menu className="mr-2 h-4 w-4" />
+                        Categories
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[300px] sm:w-[400px] p-0">
+                    <SheetHeader className="px-6 py-4">
+                        <SheetTitle>Categories</SheetTitle>
+                    </SheetHeader>
+                    <Separator />
+                    <ScrollArea className="h-[calc(100vh-80px)] px-6 py-4">
+                        {categories.map((category) => (
+                            <div key={category.id} className="mb-6">
+                                <Link href="#" className="flex items-center gap-4">
+                                    <div className="relative w-12 h-12">
+                                        <div className="relative w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                                            {category.image ? (
+                                                <Image
+                                                    src={category.image}
+                                                    alt={category.name}
+                                                    fill
+                                                    style={{ objectFit: 'cover' }}
+                                                />
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    <span className="text-sm font-medium">{category.name}</span>
+                                </Link>
+                            </div>
+                        ))}
+                    </ScrollArea>
+                </SheetContent>
+            </Sheet>
+        </div>
     )
 }
 

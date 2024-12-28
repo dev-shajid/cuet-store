@@ -3,7 +3,7 @@ import ProductForm from './components/ProductForm'
 import NotFoundCard from '@/components/NotFoundCard';
 import { getProduct } from '@/lib/action';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { Product } from '../page';
+import { Product } from '@/types/type';
 
 export default async function ProductPage({ params }: { params: { type: string } }) {
   return (

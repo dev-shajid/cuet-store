@@ -9,6 +9,8 @@ export default function GetStatusClass(status: OrderStatus) {
             return "text-green-600 border-green-400";
         case OrderStatus.CANCELED:
             return "text-red-600 border-red-400";
+        case OrderStatus.PROCESSING:
+            return "text-blue-600 border-blue-400";
         default:
             return "";
     }

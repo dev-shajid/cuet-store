@@ -8,14 +8,14 @@ import { CategorySchema, LoginSchema, ProductSchema, SignupSchema, SliderContent
 import { db } from "@/db";
 import wait, { comparePassword, hashPassword } from "./utils";
 import { auth, signIn, signOut } from "@/auth";
-import { Category, Order, OrderItem, Product, PublishStatus, SliderContent, User, UserRole } from "@prisma/client";
+import { Category, Order, OrderItem, OrderStatus, Product, PublishStatus, Review, SliderContent, User, UserRole } from "@prisma/client";
 import { products } from "./product-seed";
 import { DEFAUTL_AUTH_REDIRECT } from "@/routes";
-import { revalidatePath } from "next/cache";
 
 export const getAuthUser = AsyncHandler(async (checkRole: UserRole[] = [], include?: { [key: string]: boolean }): Promise<ApiResponseType<Partial<User> | null>> => {
     const session = await auth();
     if (!session) return ApiResponse(401, "Unauthorized");
+    console.log(include)
 
     const user = await db.user.findFirst({
         where: {
@@ -35,6 +35,27 @@ export const getAuthUser = AsyncHandler(async (checkRole: UserRole[] = [], inclu
     if (checkRole.length > 0 && !checkRole.includes(user?.role!)) return ApiResponse(403, "Forbidden");
     return ApiResponse(200, "User found", user)
 })
+
+export const updateUser = AsyncHandler(async (id: string, data: Partial<User>): Promise<ApiResponseType<null>> => {
+    const currentUser = await getAuthUser([UserRole.ADMIN]);
+    if (!currentUser.success) return ApiResponse(403, "Forbidden");
+
+    const existUser = await db.user.findUnique({
+        where: { id },
+    });
+    if (!existUser) return ApiResponse(404, "User not found");
+
+    if (data.password) {
+        data.password = await hashPassword(data.password);
+    }
+
+    await db.user.update({
+        where: { id },
+        data,
+    });
+
+    return ApiResponse(200, "User updated successfully");
+});
 
 export const login = async (credentials: z.infer<typeof LoginSchema>, callback: string = DEFAUTL_AUTH_REDIRECT): Promise<ApiResponseType<User | undefined>> => {
     const validateFields = LoginSchema.safeParse(credentials)
@@ -81,6 +102,14 @@ export const signup = AsyncHandler(async (values: z.infer<typeof SignupSchema>):
             email: values.email,
             name: values.name,
             password: await hashPassword(values.password),
+            phone: values.phone,
+        }
+    })
+
+    await db.address.create({
+        data: {
+            user_id: newUser.id,
+            full_address: values.address
         }
     })
 
@@ -243,7 +272,7 @@ export const deleteCategory = AsyncHandler(async (id: string): Promise<ApiRespon
 })
 
 
-export const getProducts = AsyncHandler(async (query: DataTableQueryProps & { categories?: string[] }, include?: { [key: string]: boolean | { [key: string]: boolean } }): Promise<ApiResponseType<TableDataType<Partial<Product>> | null>> => {
+export const getProducts = AsyncHandler(async (query: DataTableQueryProps & { categories?: string[], minPrice?: number, maxPrice?: number }, include?: { [key: string]: boolean | { [key: string]: boolean } }): Promise<ApiResponseType<TableDataType<Partial<Product>> | null>> => {
     // await wait(1000); // FIXME: Remove this line
 
     const search = query?.search ?? null;
@@ -254,9 +283,12 @@ export const getProducts = AsyncHandler(async (query: DataTableQueryProps & { ca
     const onlyPublished = query?.onlyPublished ?? true;
     const featured = query?.featured ?? false;
 
+    const minPrice = query?.minPrice ?? 0;
+    const maxPrice = query?.maxPrice
+
     const categories = query?.categories ?? null;
 
-    // console.log({ sort_by, sort_order, limit, page, onlyPublished, featured, categories })
+    console.log({ sort_by, sort_order, limit, page, onlyPublished, featured, categories, minPrice, maxPrice })
 
     include = {
         ...include,
@@ -294,6 +326,16 @@ export const getProducts = AsyncHandler(async (query: DataTableQueryProps & { ca
         whereClause = {
             category_name: {
                 in: categories
+            }
+        }
+    }
+
+    if (minPrice || maxPrice) {
+        whereClause = {
+            ...whereClause,
+            price: {
+                ...(minPrice && { gte: minPrice }),
+                ...(maxPrice && { lte: maxPrice }),
             }
         }
     }
@@ -380,6 +422,7 @@ export const getProduct = AsyncHandler(async (id: string, include?: { [key: stri
         category_name: true,
         created_at: true,
         updated_at: true,
+        reviews: true,
         ...include,
     }
 
@@ -391,6 +434,7 @@ export const getProduct = AsyncHandler(async (id: string, include?: { [key: stri
                     id: true,
                     name: true,
                     email: true,
+                    phone: true,
                 }
             },
         }
@@ -557,7 +601,8 @@ export const getSellingOrders = AsyncHandler(async (
     const page = Number(query?.page ?? 1);
 
     // Search functionality
-    let whereClause = {
+    let whereClause = {}
+    whereClause = {
         order_items: {
             some: {
                 product: {
@@ -565,7 +610,6 @@ export const getSellingOrders = AsyncHandler(async (
                 }
             }
         },
-        user: {}
     };
 
     if (search) {
@@ -653,12 +697,14 @@ export const getSellingOrders = AsyncHandler(async (
 });
 
 export const getSellingOrder = AsyncHandler(async (id: string, include?: { [key: string]: boolean | { select: { [key: string]: boolean } } }): Promise<ApiResponseType<Partial<Order & { order_items: Partial<OrderItem>[] }> | null>> => {
+    const currentUser = await getAuthUser();
+    if (!currentUser.success) return ApiResponse(401, "Unauthorized");
+
     include = {
         id: true,
         user_id: true,
         user_phone: true,
         status: true,
-        total_amount: true,
         address: true,
         created_at: true,
         updated_at: true,
@@ -668,19 +714,6 @@ export const getSellingOrder = AsyncHandler(async (id: string, include?: { [key:
                 name: true,
                 email: true,
                 image: true
-            }
-        },
-        order_items: {
-            select: {
-                id: true,
-                product_id: true,
-                product_name: true,
-                quantity: true,
-                price: true,
-                total_amount: true,
-                status: true,
-                created_at: true,
-                product: true
             }
         },
         ...include,
@@ -697,8 +730,76 @@ export const getSellingOrder = AsyncHandler(async (id: string, include?: { [key:
 
     if (!order) return ApiResponse(404, "Order not found");
 
-    return ApiResponse(200, "Order found", order)
+    const order_items = await db.orderItem.findMany({
+        where: {
+            order_id: id,
+            product: {
+                seller_email: currentUser.data.email
+            },
+        },
+        select: {
+            id: true,
+            product_id: true,
+            product_name: true,
+            quantity: true,
+            status: true,
+            price: true,
+            total_amount: true,
+            created_at: true,
+            product: {
+                select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    images: true,
+                    category_name: true,
+                    seller: {
+                        select: {
+                            name: true,
+                            email: true,
+                        }
+                    },
+                }
+            }
+        },
+    });
+
+    const total_amount = order_items.reduce((sum: number, item: { total_amount: number }) => sum + item.total_amount, 0);
+
+    console.log({ ...order, order_items, total_amount })
+    return ApiResponse(200, "Order found", { ...order, order_items, total_amount })
 })
+
+export async function updateOrderItemStatus(orderItemId: string, newStatus: OrderStatus) {
+    try {
+        const orderItem = await db.orderItem.findUnique({
+            where: { id: orderItemId },
+            select: { status: true },
+        });
+
+        if (!orderItem) {
+            return { success: false, error: 'Order item not found' };
+        }
+
+        if (orderItem.status !== OrderStatus.PENDING && newStatus === OrderStatus.PENDING) {
+            return { success: false, error: 'Cannot change status to pending' };
+        }
+
+        if (orderItem.status === OrderStatus.COMPLETED) {
+            return { success: false, error: 'Cannot change status of a completed order item' };
+        }
+
+        const updatedOrderItem = await db.orderItem.update({
+            where: { id: orderItemId },
+            data: { status: newStatus },
+        });
+
+        return { success: true, orderItem: updatedOrderItem };
+    } catch (error) {
+        console.error('Failed to update order item status:', error);
+        return { success: false, error: 'Failed to update order item status' };
+    }
+}
 
 export const getBuyingOrders = AsyncHandler(async (
     query: DataTableQueryProps,
@@ -846,7 +947,7 @@ export const getBuyingOrder = AsyncHandler(async (id: string): Promise<ApiRespon
                         },
                     }
                 }
-            }
+            },
         },
     }
 
@@ -1118,3 +1219,441 @@ export async function getSliderContent(id: string): Promise<ApiResponseType<Slid
 
     return ApiResponse(200, "Slider found", slider);
 }
+
+
+
+
+
+
+export const createReview = AsyncHandler(async (productId: string, data: { rating: number; comment?: string; images: string[] }): Promise<ApiResponseType<null>> => {
+    const user = await getAuthUser();
+    if (!user.success) return ApiResponse(401, "Unauthorized");
+
+    // console.log({ data })
+    // Retrieve the last order made by the current user that includes the product
+    const order = await db.order.findFirst({
+        where: {
+            user_id: user.data.id,
+            order_items: {
+                some: {
+                    product_id: productId,
+                    status: "COMPLETED",
+                }
+            },
+        },
+        orderBy: {
+            created_at: "desc"
+        }
+    });
+
+    if (!order) return ApiResponse(403, "You can only review products that you have purchased");
+
+    // Check if user has already reviewed the product
+    const existingReview = await db.review.findFirst({
+        where: {
+            product_id: productId,
+            order_id: order.id,
+            user_id: user.data.id
+        }
+    });
+
+    console.log(order, existingReview)
+
+    if (existingReview) return ApiResponse(400, "You have already reviewed this product");
+
+    // Create review
+    const review = await db.review.create({
+        data: {
+            product_id: productId,
+            user_id: user.data.id,
+            rating: data.rating,
+            comment: data.comment,
+            order_id: order.id,
+            images: {
+                createMany: {
+                    data: data.images.map((url: string) => ({ url }))
+                }
+            }
+        }
+    });
+
+    return ApiResponse(201, "Thank you for your feedback!");
+});
+
+export const getReviews = AsyncHandler(async (
+    query: DataTableQueryProps & { admin?: boolean },
+): Promise<ApiResponseType<TableDataType<Partial<Review>> | null>> => {
+    const search = query?.search ?? null;
+    const sort_by = query?.sort_by ?? "created_at";
+    const sort_order = query?.sort_order ?? "desc";
+    const limit = Number(query?.limit ?? 10);
+    const page = Number(query?.page ?? 1);
+
+    // Search functionality
+    let whereClause = {};
+
+    if (search) {
+        whereClause = {
+            ...whereClause,
+            title: { contains: search, mode: "insensitive" },
+        };
+    }
+    if (!query?.admin) {
+        whereClause = {
+            ...whereClause,
+            // status: PublishStatus.ACTIVE,
+            product: {
+                seller_email: (await getAuthUser()).data.email
+            }
+        }
+    }
+
+    // Pagination calculations
+    const offset = (page - 1) * limit;
+
+    const [reviews, total_count] = await Promise.all([
+        db.review.findMany({
+            where: whereClause,
+            orderBy: {
+                [sort_by]: sort_order.toLowerCase() === "asc" ? "asc" : "desc",
+            },
+            skip: offset,
+            take: limit,
+            select: {
+                id: true,
+                order_id: true,
+                product_id: true,
+                rating: true,
+                comment: true,
+                created_at: true,
+                product: {
+                    select: {
+                        name: true,
+                        images: true,
+                    }
+                },
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true
+                    }
+                }
+            }
+        }),
+        db.review.count({
+        })
+    ]);
+
+    // Pagination info
+    const total_pages = Math.ceil(total_count / limit);
+    const has_next = page < total_pages;
+    const has_previous = page > 1;
+
+    const response_data: TableDataType<Partial<Review>> = {
+        data: reviews,
+        totalCounts: total_count,
+        totalPages: total_pages,
+        hasNextPage: has_next,
+        hasPreviousPage: has_previous,
+        nextPage: page + 1,
+        previousPage: page - 1,
+    };
+
+    return ApiResponse(200, "Reviews retrieved successfully", response_data);
+});
+
+export const getReview = AsyncHandler(async (id: string): Promise<ApiResponseType<Partial<Review & { product: Partial<Product> }> | null>> => {
+    const review = await db.review.findUnique({
+        where: {
+            id,
+        },
+        select: {
+            id: true,
+            rating: true,
+            comment: true,
+            created_at: true,
+            images: true,
+            product: {
+                select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    category_name: true,
+                    images: true,
+                },
+            },
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    image: true,
+                },
+            },
+        },
+    });
+
+    if (!review) return ApiResponse(404, "Review not found");
+
+    return ApiResponse(200, "Review found", review);
+});
+
+export const updateReview = AsyncHandler(async (
+    reviewId: string,
+    data: { rating: number; comment?: string }
+): Promise<ApiResponseType<null>> => {
+    const user = await getAuthUser();
+    if (!user.success) return ApiResponse(401, "Unauthorized");
+
+    // Check if review exists and belongs to user
+    const review = await db.review.findFirst({
+        where: {
+            id: reviewId,
+            user_id: user.data.id
+        }
+    });
+
+    if (!review) return ApiResponse(404, "Review not found or unauthorized");
+
+    // Update review
+    await db.review.update({
+        where: {
+            id: reviewId
+        },
+        data: {
+            rating: data.rating,
+            comment: data.comment
+        }
+    });
+
+    return ApiResponse(200, "Review updated successfully");
+});
+
+export const deleteReview = AsyncHandler(async (reviewId: string): Promise<ApiResponseType<null>> => {
+    const user = await getAuthUser();
+    if (!user.success) return ApiResponse(401, "Unauthorized");
+
+    // Check if review exists and belongs to user
+    const review = await db.review.findFirst({
+        where: {
+            id: reviewId,
+            user_id: user.data.id
+        }
+    });
+
+    if (!review) return ApiResponse(404, "Review not found or unauthorized");
+
+    // Delete review
+    await db.review.delete({
+        where: {
+            id: reviewId
+        }
+    });
+
+    return ApiResponse(200, "Review deleted successfully");
+});
+
+export const getUserReviews = AsyncHandler(async (
+    query: DataTableQueryProps
+): Promise<ApiResponseType<TableDataType<Partial<Review>> | null>> => {
+    const user = await getAuthUser();
+    if (!user.success) return ApiResponse(401, "Unauthorized");
+
+    const sort_by = query?.sort_by ?? "created_at";
+    const sort_order = query?.sort_order ?? "desc";
+    const limit = Number(query?.limit ?? 10);
+    const page = Number(query?.page ?? 1);
+
+    // Pagination calculations
+    const offset = (page - 1) * limit;
+
+    const [reviews, total_count] = await Promise.all([
+        db.review.findMany({
+            where: {
+                user_id: user.data.id
+            },
+            orderBy: {
+                [sort_by]: sort_order.toLowerCase() === "asc" ? "asc" : "desc",
+            },
+            skip: offset,
+            take: limit,
+            select: {
+                id: true,
+                rating: true,
+                comment: true,
+                created_at: true,
+                product: {
+                    select: {
+                        id: true,
+                        name: true,
+                        images: true
+                    }
+                }
+            }
+        }),
+        db.review.count({
+            where: {
+                user_id: user.data.id
+            }
+        })
+    ]);
+
+    // Pagination info
+    const total_pages = Math.ceil(total_count / limit);
+    const has_next = page < total_pages;
+    const has_previous = page > 1;
+
+    const response_data: TableDataType<Partial<Review>> = {
+        data: reviews,
+        totalCounts: total_count,
+        totalPages: total_pages,
+        hasNextPage: has_next,
+        hasPreviousPage: has_previous,
+        nextPage: page + 1,
+        previousPage: page - 1,
+    };
+
+    return ApiResponse(200, "User reviews retrieved successfully", response_data);
+});
+
+export const getReviewsByProductId = AsyncHandler(async (
+    productId: string,
+    query: DataTableQueryProps
+): Promise<ApiResponseType<TableDataType<Partial<Review>>>> => {
+    const sort_by = query?.sort_by ?? "created_at";
+    const sort_order = query?.sort_order ?? "desc";
+    const limit = Number(query?.limit ?? 10);
+    const page = Number(query?.page ?? 1);
+
+    // Pagination calculations
+    const offset = (page - 1) * limit;
+
+    const [reviews, total_count] = await Promise.all([
+        db.review.findMany({
+            where: {
+                product_id: productId
+            },
+            orderBy: {
+                [sort_by]: sort_order.toLowerCase() === "asc" ? "asc" : "desc",
+            },
+            skip: offset,
+            take: limit,
+            select: {
+                id: true,
+                rating: true,
+                comment: true,
+                created_at: true,
+                images: true,
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        image: true
+                    }
+                }
+            }
+        }),
+        db.review.count({
+            where: {
+                product_id: productId
+            }
+        })
+    ]);
+
+    // Pagination info
+    const total_pages = Math.ceil(total_count / limit);
+    const has_next = page < total_pages;
+    const has_previous = page > 1;
+
+    const response_data: TableDataType<Partial<Review>> = {
+        data: reviews,
+        totalCounts: total_count,
+        totalPages: total_pages,
+        hasNextPage: has_next,
+        hasPreviousPage: has_previous,
+        nextPage: page + 1,
+        previousPage: page - 1,
+    };
+
+    return ApiResponse(200, "Reviews retrieved successfully", response_data);
+});
+
+
+export const getSellerDetails = AsyncHandler(async (id: string): Promise<ApiResponseType<Partial<User> | null>> => {
+    const seller = await db.user.findUnique({
+        where: { id },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            created_at: true,
+        },
+    });
+
+    if (!seller) return ApiResponse(404, "Seller not found");
+
+    return ApiResponse(200, "Seller found", seller);
+});
+
+export const getSellerProducts = AsyncHandler(async (
+    id: string,
+    query: DataTableQueryProps
+): Promise<ApiResponseType<TableDataType<Partial<Product>> | null>> => {
+    const sort_by = query?.sort_by ?? "created_at";
+    const sort_order = query?.sort_order ?? "desc";
+    const limit = Number(query?.limit ?? 10);
+    const page = Number(query?.page ?? 1);
+
+    // Pagination calculations
+    const offset = (page - 1) * limit;
+
+    const [products, total_count] = await Promise.all([
+        db.product.findMany({
+            where: { seller: { id } },
+            orderBy: {
+                [sort_by]: sort_order.toLowerCase() === "asc" ? "asc" : "desc",
+            },
+            skip: offset,
+            take: limit,
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                price: true,
+                stock: true,
+                images: true,
+                status: true,
+                is_featured: true,
+                category_name: true,
+                created_at: true,
+                updated_at: true,
+            },
+        }),
+        db.product.count({
+            where: { seller: { id } },
+        }),
+    ]);
+
+    // Pagination info
+    const total_pages = Math.ceil(total_count / limit);
+    const has_next = page < total_pages;
+    const has_previous = page > 1;
+
+    // Build the response structure
+    const response_data: TableDataType<Partial<Product>> = {
+        data: products,
+        totalCounts: total_count,
+        totalPages: total_pages,
+        hasNextPage: has_next,
+        hasPreviousPage: has_previous,
+        nextPage: page + 1,
+        previousPage: page - 1,
+    };
+
+    if (!products.length) return ApiResponse(404, "No products found for this seller");
+
+    return ApiResponse(200, "Products found", response_data);
+});

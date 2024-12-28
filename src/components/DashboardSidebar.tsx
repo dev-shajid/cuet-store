@@ -7,6 +7,7 @@ import {
     Home,
     Percent,
     User,
+    Users,
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 import React from "react"
@@ -89,11 +90,16 @@ const MenuItems = [
     {
         label: 'Customers',
         url: '/dashboard/customers',
-        icon: User,
+        icon: Users,
     },
     {
-        label: 'Cupons',
-        url: '/dashboard/cupons',
+        label: 'Reviews',
+        url: '/dashboard/reviews',
         icon: Percent,
+    },
+    {
+        label: 'Profile',
+        url: '/dashboard/profile',
+        icon: User,
     },
 ]
