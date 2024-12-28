@@ -25,11 +25,13 @@ import LoadingDataTable from "./loading-data-table"
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TableDataType<TData>
+    clickable?: boolean
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
+    clickable = true,
 }: DataTableProps<TData, TValue>) {
     const pathname = usePathname()
     const router = useRouter()
@@ -70,6 +72,7 @@ export function DataTable<TData, TValue>({
                                         data-state={row.getIsSelected() && "selected"}
                                         className="cursor-pointer hover:bg-indigo-500/10"
                                         onClick={() => {
+                                            if (!clickable) return;
                                             const rowData = row.original as { id: string }
                                             router.push(`${pathname}/${rowData.id}`)
                                         }}

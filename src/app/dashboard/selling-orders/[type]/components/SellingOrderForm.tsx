@@ -1,18 +1,48 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { formatCurrency } from "@/lib/utils"; // Assume a utility for formatting currency
-import { Order, OrderItem, OrderStatus } from '@prisma/client';
-import { OrderDetails } from '@/types/type';
-import GetStatusClass from '@/components/GetStatusClass';
+'use client'
 
-const SellingOrderForm = ({ order }: { order: OrderDetails }) => {
-    if (order === null) return null;
+import React, { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { formatCurrency } from "@/lib/utils"
+import { OrderDetails } from '@/types/type'
+import GetStatusClass from '@/components/GetStatusClass'
+import { OrderStatus } from '@prisma/client'
+import { toast } from '@/hooks/use-toast'
+import { updateOrderItemStatus } from '@/lib/action'
+import BlurImage from '@/components/BlurImage'
+
+const SellingOrderForm = ({ order: initialOrder }: { order: OrderDetails }) => {
+    const [order, setOrder] = useState(initialOrder)
+
+    if (order === null) return null
+
+    const handleStatusChange = async (orderItemId: string, newStatus: OrderStatus) => {
+        const result = await updateOrderItemStatus(orderItemId, newStatus)
+        if (result.success) {
+            setOrder(prevOrder => ({
+                ...prevOrder,
+                order_items: prevOrder.order_items.map(item =>
+                    item.id === orderItemId ? { ...item, status: newStatus } : item
+                )
+            }))
+            toast({
+                title: "✅ Status updated",
+                description: `Order item status changed to ${newStatus}`,
+            })
+        } else {
+            toast({
+                title: "Error",
+                description: result.error,
+                variant: "destructive",
+            })
+        }
+    }
+
     return (
         <div className="p-6 space-y-6">
-            {/* Order Information */}
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg font-semibold text-primary">
@@ -28,12 +58,6 @@ const SellingOrderForm = ({ order }: { order: OrderDetails }) => {
                         <p className="text-sm font-medium text-muted-foreground">Phone</p>
                         <p className="text-base font-semibold">{order?.user_phone}</p>
                     </div>
-                    {/* <div>
-                        <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <Badge variant="outline" className={`capitalize ${GetStatusClass(order?.status)}`}>
-                            {order?.status}
-                        </Badge>
-                    </div> */}
                     <div>
                         <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
                         <p className="text-base font-semibold">{formatCurrency(order?.total_amount)}</p>
@@ -53,7 +77,6 @@ const SellingOrderForm = ({ order }: { order: OrderDetails }) => {
 
             <Separator />
 
-            {/* Order Items */}
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg font-semibold text-primary">
@@ -65,6 +88,7 @@ const SellingOrderForm = ({ order }: { order: OrderDetails }) => {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Product Name</TableHead>
+                                <TableHead>Product Image</TableHead>
                                 <TableHead>Quantity</TableHead>
                                 <TableHead>Price</TableHead>
                                 <TableHead>Total</TableHead>
@@ -75,13 +99,40 @@ const SellingOrderForm = ({ order }: { order: OrderDetails }) => {
                             {order?.order_items.map((item) => (
                                 <TableRow key={item.id}>
                                     <TableCell>{item.product_name}</TableCell>
+                                    <TableCell>
+                                        {
+                                            item.product.images?.[0]?.url ?
+                                                <BlurImage
+                                                    src={item.product.images?.[0]?.url}
+                                                    alt={item.product_name}
+                                                    className="w-10 h-10 rounded-md"
+                                                /> : null
+                                        }
+                                    </TableCell>
                                     <TableCell>{item.quantity}</TableCell>
                                     <TableCell>{formatCurrency(item.price)}</TableCell>
                                     <TableCell>{formatCurrency(item.total_amount)}</TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className={`capitalize ${GetStatusClass(item.status)}`}>
-                                            {item.status}
-                                        </Badge>
+                                        <Select
+                                            onValueChange={(value: OrderStatus) => handleStatusChange(item.id, value)}
+                                            defaultValue={item.status}
+                                            disabled={item.status === 'COMPLETED'}
+                                        >
+                                            <SelectTrigger className={`capitalize w-auto h-7 text-sm flex disabled:opacity-100 ${GetStatusClass(item.status)}`}>
+                                                {item.status}
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {item.status === 'PENDING' && (
+                                                    <>
+                                                        <SelectItem value="PROCESSING">Processing</SelectItem>
+                                                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                                                    </>
+                                                )}
+                                                {item.status === 'PROCESSING' && (
+                                                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                                                )}
+                                            </SelectContent>
+                                        </Select>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -90,8 +141,8 @@ const SellingOrderForm = ({ order }: { order: OrderDetails }) => {
                 </CardContent>
             </Card>
         </div>
-    );
-};
+    )
+}
 
+export default SellingOrderForm
 
-export default SellingOrderForm;

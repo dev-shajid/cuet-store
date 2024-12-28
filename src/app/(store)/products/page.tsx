@@ -18,6 +18,7 @@ import { DataTablePagination } from '@/components/data-table/DataTablePagination
 import { toast } from '@/hooks/use-toast'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import useDebounce from '@/hooks/use-debounce'
 
 export default function ProductSearch() {
   const router = useRouter()
@@ -28,6 +29,18 @@ export default function ProductSearch() {
     <div className="container mx-auto space-y-8 py-8">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
+          {searchParams.get('search') ?
+            <div className='border border-input h-9 px-4 py-2 flex items-center gap-2 rounded-md text-sm text-muted-foreground'>
+              {searchParams.get('search') ?? 'All Products'}
+              <X
+                onClick={() => {
+                  const params = new URLSearchParams(searchParams.toString())
+                  params.delete('search')
+                  router.push(`?${params.toString()}`)
+                }}
+                className="h-4 w-4 cursor-pointer hover:text-white"
+              />
+            </div> : null}
           <FilterComponent />
           <Select value={sortBy} onValueChange={(e) => {
             const params = new URLSearchParams(searchParams.toString())
@@ -56,7 +69,7 @@ export default function ProductSearch() {
 
 
 
-function FilterComponent() {
+export function FilterComponent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [search, setSearch] = useState(searchParams.get('search') || '')
@@ -67,17 +80,28 @@ function FilterComponent() {
   const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'price_asc')
 
   const updateURL = () => {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams(searchParams.toString())
     if (search) params.set('search', search)
-    // if (minPrice) params.set('minPrice', minPrice)
-    // if (maxPrice) params.set('maxPrice', maxPrice)
+    else params.delete('search')
+
+    if (minPrice) params.set('minPrice', minPrice)
+    else params.delete('minPrice')
+
+    if (maxPrice) params.set('maxPrice', maxPrice)
+    else params.delete('maxPrice')
+
     if (selectedCategories.length) params.set('categories', selectedCategories.join(','))
+    else params.delete('categories')
 
     router.push(`?${params.toString()}`)
   }
 
-  useEffect(() => {
+  const debouncePriceFilter = useDebounce((min?:number, max?:number) => {
     updateURL()
+  }, 500)
+
+  useEffect(() => {
+    debouncePriceFilter()
   }, [search, minPrice, maxPrice, selectedCategories, sortBy])
 
   const handleResetFilters = () => {
@@ -97,11 +121,6 @@ function FilterComponent() {
     )
   }
 
-  const handleRatingChange = (rating: string) => {
-    setSelectedRatings(prev =>
-      prev.includes(rating) ? prev.filter(r => r !== rating) : [...prev, rating]
-    )
-  }
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -150,7 +169,10 @@ function FilterComponent() {
                   className="w-full"
                   min={0}
                   value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
+                  onChange={(e) => {
+                    setMinPrice(e.target.value)
+                    // debouncePriceFilter(Number(e.target.value), Number(maxPrice))
+                  }}
                 />
                 <span>to</span>
                 <Input
@@ -159,11 +181,14 @@ function FilterComponent() {
                   className="w-full"
                   min={0}
                   value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
+                  onChange={(e) => {
+                    setMaxPrice(e.target.value)
+                    // debouncePriceFilter(Number(minPrice), Number(e.target.value))
+                  }}
                 />
               </div>
             </div>
-            <div>
+            {/* <div>
               <h6 className="font-semibold mb-2">Rating</h6>
               <div className="space-y-2">
                 {[5, 4, 3, 2, 1].map((rating) => (
@@ -179,7 +204,7 @@ function FilterComponent() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div> */}
           </div>
         </ScrollArea>
       </SheetContent>
@@ -195,7 +220,7 @@ function ProductsList() {
   const fetchProducts = async () => {
     try {
       setIsLoading(true)
-      const query: DataTableQueryProps & { categories?: string[] } = {
+      const query: DataTableQueryProps & { categories?: string[], minPrice?:number,maxPrice?:number } = {
         limit: Number(searchParams.get('limit') ?? 10),
         page: Number(searchParams.get('page') ?? 1),
         categories: searchParams.get('categories')?.split(','),
@@ -209,6 +234,12 @@ function ProductsList() {
         query.sort_by = 'price'
         query.sort_order = (sort == 'price_asc' ? 'asc' : 'desc') as 'desc' | 'asc'
       }
+
+      const minPrice = searchParams.get('minPrice')
+      if (minPrice) query.minPrice = Number(minPrice)
+
+      const maxPrice = searchParams.get('maxPrice')
+      if (maxPrice) query.maxPrice = Number(maxPrice)
 
       const res: ApiResponseType<TableDataType<Product>> = await getProducts(query)
       if (res.success) setFilteredProducts(res.data)

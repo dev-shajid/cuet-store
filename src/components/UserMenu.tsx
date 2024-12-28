@@ -15,9 +15,9 @@ import { usePathname } from 'next/navigation'
 
 
 export default function UserMenu() {
-    const { status } = useSession()
+    const { status, data } = useSession()
     const dashboardPath = usePathname().split('/')?.[1] === 'dashboard';
-    console.log({ dashboardPath })
+    // console.log({ dashboardPath })
 
     return (
         <DropdownMenu>
@@ -28,7 +28,13 @@ export default function UserMenu() {
                 </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                    {
+                        data ?
+                            data.user.name :
+                            'Guest'
+                    }
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {
                     status == 'loading' ?

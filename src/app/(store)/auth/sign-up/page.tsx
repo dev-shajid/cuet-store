@@ -30,9 +30,10 @@ import { FaGithub } from 'react-icons/fa'
 import { SignupSchema } from '@/lib/schema'
 import { login, signup } from '@/lib/action'
 import { useLoadingOverlay } from '@/hooks/use-loading-overlay'
+import { toast } from '@/hooks/use-toast'
 
 export default function SignupForm() {
-    const {onClose, onOpen} = useLoadingOverlay()
+    const { onClose, onOpen } = useLoadingOverlay()
 
     const form = useForm<z.infer<typeof SignupSchema>>({
         resolver: zodResolver(SignupSchema),
@@ -40,6 +41,8 @@ export default function SignupForm() {
             name: "",
             email: "",
             password: "",
+            phone: '',
+            address: "",
             // dateOfBirth: "",
             // studentId: "",
             // gender: undefined,
@@ -54,11 +57,19 @@ export default function SignupForm() {
     async function onSubmit(values: z.infer<typeof SignupSchema>) {
         onOpen()
         const res = await signup(values)
-        if(res.success) {
+        if (res.success) {
+            toast({
+                title: "✅ Success",
+                description: "Your account has been created successfully",
+            })
             await login({ email: values.email, password: values.password })
+            window.location.replace('/')
         }
-        else{
-            alert(res.message)
+        else {
+            toast({
+                title: "❌ Error",
+                description: res.message,
+            })
         }
         console.log(res)
         onClose()
@@ -70,54 +81,79 @@ export default function SignupForm() {
 
     return (
         <div className="flex items-center justify-center container h-full">
-            <div className='p-4 z-10 max-w-[600px] w-full'>
-                <Card className='w-full'>
-                    <CardHeader>
-                        <CardTitle className='text-3xl font-bold text-center'>Student Signup</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                                <FormField
-                                    control={form.control}
-                                    name="name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Full Name</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="John Doe" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="email"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Email</FormLabel>
-                                            <FormControl>
-                                                <Input type="email" placeholder="john@example.com" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="password"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="********" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                {/* <FormField
+            <Card className="w-full max-w-md">
+                <CardHeader>
+                    <CardTitle className='text-3xl font-bold text-center'>Signup</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Full Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="John Doe" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="email"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Email</FormLabel>
+                                        <FormControl>
+                                            <Input type="email" placeholder="john@example.com" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="password"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" placeholder="********" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="phone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Phone</FormLabel>
+                                        <FormControl>
+                                            <Input type="text" placeholder="Enter your phone number" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="address"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Address</FormLabel>
+                                        <FormControl>
+                                            <Input type="text" placeholder="Enter your address" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            {/* <FormField
                                     control={form.control}
                                     name="dateOfBirth"
                                     render={({ field }) => (
@@ -294,33 +330,32 @@ export default function SignupForm() {
                                         </FormItem>
                                     )}
                                 /> */}
-                                <Button type="submit" className="w-full">Sign Up</Button>
-                            </form>
-                        </Form>
-                        <div className="mt-6">
-                            <Separator className="my-4" />
-                            <div className="grid grid-cols-2 gap-4">
-                                <Button variant="outline" className="w-full">
-                                    <FcGoogle className="mr-2 h-4 w-4" />
-                                    Google
-                                </Button>
-                                <Button variant="outline" className="w-full">
-                                    <FaGithub className="mr-2 h-4 w-4" />
-                                    GitHub
-                                </Button>
-                            </div>
+                            <Button type="submit" className="w-full">Sign Up</Button>
+                        </form>
+                    </Form>
+                    <div className="mt-6">
+                        <Separator className="my-4" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <Button variant="outline" className="w-full">
+                                <FcGoogle className="mr-2 h-4 w-4" />
+                                Google
+                            </Button>
+                            <Button variant="outline" className="w-full">
+                                <FaGithub className="mr-2 h-4 w-4" />
+                                GitHub
+                            </Button>
                         </div>
-                    </CardContent>
-                    <CardFooter>
-                        <p className="text-center text-sm text-muted-foreground w-full">
-                            Already have an account?{" "}
-                            <Link href="/auth/sign-in" className="text-primary underline">
-                                Log in
-                            </Link>
-                        </p>
-                    </CardFooter>
-                </Card>
-            </div>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <p className="text-center text-sm text-muted-foreground w-full">
+                        Already have an account?{" "}
+                        <Link href="/auth/sign-in" className="text-primary underline">
+                            Log in
+                        </Link>
+                    </p>
+                </CardFooter>
+            </Card>
         </div>
     )
 }

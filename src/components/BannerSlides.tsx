@@ -6,6 +6,10 @@ import Image from "next/image";
 import { Button } from "./ui/button";
 import { FaAngleLeft, FaAngleRight } from "react-icons/fa";
 import { cn } from "@/lib/utils";
+import { getSlidersContent } from "@/lib/action";
+import { SliderContent } from "@prisma/client";
+import { Product } from "@/types/type";
+import { LinkButton } from "./ui/link-button";
 
 const slides = [
     {
@@ -38,23 +42,75 @@ const slides = [
     },
 ];
 
+interface SlideProps {
+    id: string;
+    product_id: string;
+    title: string;
+    description: string;
+    image: string;
+    tag: string;
+}
+
 export default function BannerSlides() {
+    const [slides, setSlides] = useState<SlideProps[]>([]);
     const [currentSlide, setCurrentSlide] = useState(0);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchSlides() {
+            const response = await getSlidersContent();
+            console.log(response.data.data[0])
+            if (response.success) {
+                const formattedSlides = response.data.data.map((slide: SliderContent & { product: Product }) => ({
+                    id: slide.id,
+                    title: slide.title,
+                    description: slide.description,
+                    image: slide.product.images[0].url!, // Assuming the first image is the one you want to use
+                    tag: slide.tag,
+                    product_id: slide.product_id,
+                }));
+                setSlides(formattedSlides);
+            }
+            setLoading(false);
+        }
+        fetchSlides();
+    }, []);
 
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentSlide((prev) => (prev + 1) % slides.length);
-        }, 3000); // Slide change every 5 seconds
+        }, 3000); // Slide change every 3 seconds
         return () => clearInterval(interval);
-    }, [currentSlide]);
+    }, [currentSlide, slides.length]);
 
     const nextSlide = () => setCurrentSlide((currentSlide + 1) % slides.length);
     const prevSlide = () => setCurrentSlide((currentSlide - 1 + slides.length) % slides.length);
 
+    if (loading) {
+        return (
+            <div className="relative w-full md:h-[500px] h-[600px] overflow-hidden bg-gradient-to-r from-background via-transparent to-background backdrop-blur-lg">
+                <div className="absolute w-full h-full flex items-center">
+                    <div className="container mx-auto px-8 flex flex-col gap-4 md:flex-row items-center justify-between">
+                        {/* Left Section */}
+                        <div className="max-w-md flex-1">
+                            <div className="bg-muted animate-pulse h-8 max-w-[150px] w-full rounded mb-4"/>
+                            <div className="bg-muted animate-pulse h-8 max-w-[250px] w-full rounded mb-4"/>
+                            <div className="bg-muted animate-pulse h-16 max-w-[350px] w-full rounded mb-4"/>
+                            <div className="bg-muted animate-pulse h-8 max-w-[100px] w-full rounded mb-4"/>
+                        </div>
+
+                        {/* Right Section Skeleton */}
+                        <div className="relative aspect-square h-[300px] md:h-[400px] bg-muted animate-pulse rounded"></div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="relative w-full md:h-[500px] h-[600px] overflow-hidden bg-gradient-to-r from-background via-transparent to-background backdrop-blur-lg">
             <AnimatePresence mode="wait">
-                {slides.map(
+                {slides?.map(
                     (slide, index) =>
                         index === currentSlide && (
                             <motion.div
@@ -75,9 +131,9 @@ export default function BannerSlides() {
                                             {slide.title}
                                         </h1>
                                         <p className="text-sm mb-6">{slide.description}</p>
-                                        <Button className="bg-blue-600 hover:bg-blue-700 rounded text-white">
+                                        <LinkButton href={`/products/${slide.product_id}`} className="bg-blue-600 hover:bg-blue-700 rounded text-white">
                                             Shop now
-                                        </Button>
+                                        </LinkButton>
                                     </div>
 
                                     {/* Right Section */}

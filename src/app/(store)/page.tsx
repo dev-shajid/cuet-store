@@ -56,7 +56,7 @@ async function FeaturedCategories() {
   return (
     <>
       {categories?.map((category) => (
-        <Link key={category.id} href="#" className="block">
+        <Link key={category.id} href={`/products?categories=${category.name}&limit=10&page=1`} className="block">
           <Card className="relative overflow-hidden">
             <div className="p-4 flex flex-col items-center gap-3">
               <div className="relative w-16 h-16">

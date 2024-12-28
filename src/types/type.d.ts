@@ -1,4 +1,4 @@
-import { Product as PrismaProduct, UserRole } from "@prisma/client";
+import { Product as PrismaProduct, Review as PrismaReview, UserRole, User, ReviewMedia, ProductMedia } from "@prisma/client";
 
 export interface UserType {
     id: string;
@@ -125,6 +125,8 @@ export interface DataTableQueryProps {
 export type Product = PrismaProduct & {
     images: ProductMedia[];
 };
+
+export type Review = PrismaReview & { product: Product, user: User, images: ReviewMedia[] }
 
 export type CartItem = {
     id: string

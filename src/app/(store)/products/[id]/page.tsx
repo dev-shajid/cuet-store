@@ -8,22 +8,27 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { use } from 'react';
 import BlurImage from '@/components/BlurImage';
 import { getProduct } from '@/lib/action';
-import { Product } from '@/types/type';
+import { Product, Review } from '@/types/type';
 import { User } from '@prisma/client';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { useShoppingCart } from '@/hooks/use-shopping-cart';
 import Link from 'next/link';
+import ReviewsTab from './components/ReviewsTab';
 
 export default function Component({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   const [selectedImage, setSelectedImage] = useState(0); // For image selection
-  const [product, setProduct] = useState<Product & { seller: Partial<User> } | undefined>(undefined);
+  const [product, setProduct] = useState<Product & { seller: Partial<User>, reviews: Review[] } | undefined>(undefined);
+  const [averageRating, setAverageRating] = useState<number>(0);
 
   const handleAddToCart = useShoppingCart(state => state.addProductToCart)
 
   const fetchProduct = async () => {
     const res = await getProduct(unwrappedParams.id, { seller: true });
-    if (res.success) setProduct(res.data);
+    if (res.success) {
+      setProduct(res.data);
+      if (res.data.reviews.length) setAverageRating(res.data.reviews.reduce((acc: number, review: Review) => acc + review.rating, 0) / res.data.reviews.length);
+    }
   }
 
   useEffect(() => {
@@ -78,19 +83,19 @@ export default function Component({ params }: { params: Promise<{ id: string }> 
               {[...Array(5)].map((_, index) => (
                 <Star
                   key={index}
-                  className={`h-5 w-5 ${index < Math.floor(4) ? 'text-yellow-500' : 'text-muted'
+                  className={`h-5 w-5 ${index < Math.floor(averageRating) ? 'text-yellow-500' : 'text-muted'
                     }`}
                   fill="currentColor"
                 />
               ))}
-              <sub className="ml-2 text-muted-foreground">({4})</sub>
+              <sub className="ml-2 text-muted-foreground">({averageRating.toFixed(1)})</sub>
             </div>
           </div>
           <div>
-            <span>Seller:</span> <Link href={'#'} className="underline">{product.seller.name}</Link>
+            <span>Seller:</span> <Link href={`/seller/${product.seller.id}`} className="underline">{product.seller.name}</Link>
           </div>
           <div>
-            <span>Status:</span> <span className={cn(product.stock>0?'text-green-500':'text-red-500')}>{product.stock ? 'In Stock':'Out of Stock'}</span>
+            <span>Status:</span> <span className={cn(product.stock > 0 ? 'text-green-500' : 'text-red-500')}>{product.stock ? 'In Stock' : 'Out of Stock'}</span>
           </div>
 
           {/* Size Selection */}
@@ -113,7 +118,7 @@ export default function Component({ params }: { params: Promise<{ id: string }> 
           {/* Add to Cart Button */}
           <Button
             className="w-full"
-            onClick={() => handleAddToCart({id: product.id, name: product.name, image: product?.images?.[0].url, category:product.category_name, price:product.price, quantity: 1})}
+            onClick={() => handleAddToCart({ id: product.id, name: product.name, image: product?.images?.[0].url, category: product.category_name, price: product.price, quantity: 1 })}
           >
             <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
           </Button>
@@ -156,30 +161,11 @@ export default function Component({ params }: { params: Promise<{ id: string }> 
             </div>
           </TabsContent>
           <TabsContent value="reviews" className="mt-6">
-            <h2 className="text-lg font-semibold mb-2">Customer Reviews</h2>
-            <div className="space-y-4">
-              <div className="border-b pb-4">
-                <div className="flex items-center mb-2">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, index) => (
-                      <Star
-                        key={index}
-                        className={`h-4 w-4 ${index < 4 ? 'text-yellow-500' : 'text-muted'}`}
-                        fill="currentColor"
-                      />
-                    ))}
-                  </div>
-                  <span className="ml-2 text-sm font-medium text-muted-foreground">
-                    4.0 out of 5
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Great t-shirt! The fabric is soft and comfortable, and the fit is perfect. Ive
-                  washed it several times now, and its holding up well. Definitely recommend
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">- John D., Verified Buyer</p>
-              </div>
-            </div>
+            <ReviewsTab
+              averageRating={averageRating}
+              totalReview={product.reviews.length}
+              productId={product.id}
+            />
           </TabsContent>
           <TabsContent value="contact" className="mt-6">
             <h2 className="text-lg font-semibold mb-2">Contact Seller</h2>
@@ -189,6 +175,7 @@ export default function Component({ params }: { params: Promise<{ id: string }> 
                   [
                     { name: 'Name', value: product.seller.name },
                     { name: 'Email', value: product.seller.email },
+                    { name: 'Phone', value: product.seller.phone },
                   ].map((item, index) => (
                     <TableRow key={index}>
                       <TableCell>{item.name}</TableCell>

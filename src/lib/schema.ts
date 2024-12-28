@@ -14,6 +14,10 @@ export const SignupSchema = z.object({
     name: z.string().min(3, { message: "Name must be at least 3 characters" }),
     email: z.string().email({ message: "Invalid email address" }),
     password: z.string().min(5, { message: "Password must be at least 8 characters" }),
+    phone: z.string().regex(/^(?:\+88|88)?(01[3-9]\d{8})$/, {
+        message: "Invalid Bangladeshi phone number",
+    }),
+    address: z.string().min(5, "Full address must be at least 5 characters"),
     // dateOfBirth: z.string().nonempty({ message: "Date of birth is required" }),
     // studentId: z.string().nonempty({ message: "Student ID is required" }),
     // gender: z.enum(["male", "female", "other"], { required_error: "Please select a gender" }),
@@ -64,3 +68,14 @@ export const SliderContentSchema = z.object({
     start_at: z.date().default(new Date()),
     end_at: z.date().default(new Date()),
 });
+
+export const ReviewSchema = z.object({
+    rating: z
+        .union([z.string(), z.number()])
+        .refine((val) => {
+            const num = typeof val === "string" ? Number(val) : val;
+            return !isNaN(num) && num >= 1 && num <= 5 && Number.isInteger(num);
+        }, { message: "Rating must be a whole number between 1 and 5" })
+        .transform((val) => typeof val === "string" ? Number(val) : val),
+    comment: z.string().min(3, { message: "Comment must be at least 3 characters" }).max(500, { message: "Comment cannot exceed 500 characters" }),
+})
