@@ -11,36 +11,6 @@ import { SliderContent } from "@prisma/client";
 import { Product } from "@/types/type";
 import { LinkButton } from "./ui/link-button";
 
-const slides = [
-    {
-        id: 1,
-        title: "Classic Leather Loafers",
-        description: "Atque eaque ducimus minima distinctio velit. Laborum et veniam officiis.",
-        image: "/images/products/product-1.webp",
-        tag: "Opening Sale Discount 50%",
-    },
-    {
-        id: 2,
-        title: "Premium Headphones",
-        description: "Delectus ex saepe hic id laboriosam officia. Odit nostrum quas.",
-        image: "/images/products/product-2.webp",
-        tag: "Limited Offer 30%",
-    },
-    {
-        id: 3,
-        title: "Mountain Trekking Boots",
-        description: "Laborum et veniam officiis. Delectus ex saepe hic id laboriosam officia.",
-        image: "/images/products/product-3.webp",
-        tag: "New Arrival",
-    },
-    {
-        id: 4,
-        title: "Elegance Stiletto Heels",
-        description: "Laborum et veniam officiis. Delectus ex saepe hic id laboriosam officia.",
-        image: "/images/products/product-4.webp",
-        tag: "New Arrival",
-    },
-];
 
 interface SlideProps {
     id: string;
@@ -59,9 +29,8 @@ export default function BannerSlides() {
     useEffect(() => {
         async function fetchSlides() {
             const response = await getSlidersContent();
-            console.log(response.data.data[0])
             if (response.success) {
-                const formattedSlides = response.data.data.map((slide: SliderContent & { product: Product }) => ({
+                const formattedSlides = response?.data?.data.map((slide: SliderContent & { product: Product }) => ({
                     id: slide.id,
                     title: slide.title,
                     description: slide.description,

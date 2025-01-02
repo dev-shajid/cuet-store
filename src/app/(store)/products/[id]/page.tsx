@@ -48,7 +48,7 @@ export default function Component({ params }: { params: Promise<{ id: string }> 
               <BlurImage
                 src={product.images[selectedImage].url}
                 alt={`${product.name} - Main View`}
-                className="h-full w-full object-cover object-center"
+                className="h-full w-full object-contain object-center"
               /> : null}
           </div>
 

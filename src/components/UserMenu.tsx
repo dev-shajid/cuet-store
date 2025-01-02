@@ -12,10 +12,12 @@ import Link from 'next/link'
 import ThemeToggle from './theme/them-change'
 import { signOut, useSession } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
+import { User } from 'lucide-react'
 
 
 export default function UserMenu() {
     const { status, data } = useSession()
+    console.log(data)
     const dashboardPath = usePathname().split('/')?.[1] === 'dashboard';
     // console.log({ dashboardPath })
 
@@ -23,8 +25,17 @@ export default function UserMenu() {
         <DropdownMenu>
             <DropdownMenuTrigger>
                 <Avatar>
-                    {/* <AvatarImage src="https://github.com/shadcn.png" /> */}
-                    <AvatarFallback>CN</AvatarFallback>
+                    {data?.user?.image ?
+                        <AvatarImage src={`${data?.user?.image}`} /> :
+                        null
+                    }
+                    <AvatarFallback>
+                        {
+                            data ?
+                                data.user.name?.[0] :
+                                <User/>
+                        }
+                    </AvatarFallback>
                 </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
