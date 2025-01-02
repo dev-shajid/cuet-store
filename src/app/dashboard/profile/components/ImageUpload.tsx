@@ -16,8 +16,6 @@ interface ImageUploadProps {
 }
 
 export function ImageUpload({ onImageUpload, currentImage, fallback }: ImageUploadProps) {
-    const [isUploading, setIsUploading] = useState(false)
-    const { onClose, onOpen } = useLoadingOverlay(state => state)
 
     return (
         <div className="flex flex-col items-center space-y-4">
@@ -36,9 +34,9 @@ export function ImageUpload({ onImageUpload, currentImage, fallback }: ImageUplo
                         open();
                     }
                     return (
-                        <div onClick={onClick} className='cursor-pointer size-32 rounded-full after:h-full after:w-full after:rounded-full after:hover:bg-black/50 relative after:absolute after:top-0 after:right-0 transition-all duration-300'>
+                        <div onClick={onClick} className='cursor-pointer size-32 border rounded-full after:h-full after:w-full after:rounded-full after:hover:bg-black/50 relative after:absolute after:top-0 after:right-0 transition-all duration-300'>
                             <Avatar className="w-full h-full">
-                                <AvatarImage src={currentImage} alt={fallback} />
+                                <AvatarImage src={currentImage} alt={fallback} className='object-cover' />
                                 <AvatarFallback>{fallback}</AvatarFallback>
                             </Avatar>
                         </div>

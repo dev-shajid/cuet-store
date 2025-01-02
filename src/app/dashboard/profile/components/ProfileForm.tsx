@@ -10,12 +10,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import { updateUser } from '@/lib/action'
 import { ApiResponseType } from '@/lib/ApiResponse'
 import { useLoadingOverlay } from '@/hooks/use-loading-overlay'
 import { ImageUpload } from './ImageUpload'
+import { useSession } from 'next-auth/react'
 
 const profileSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -34,6 +34,7 @@ interface ProfileDetailsProps {
 export default function ProfileDetails({ initialProfile }: ProfileDetailsProps) {
     const { toast } = useToast()
     const { onClose, onOpen } = useLoadingOverlay()
+    const { update } = useSession()
 
     const form = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
@@ -51,6 +52,8 @@ export default function ProfileDetails({ initialProfile }: ProfileDetailsProps) 
             onOpen()
             const res: ApiResponseType<null> = await updateUser(initialProfile.id, data)
             if (!res.success) throw new Error(res.message)
+            console.log(res)
+            update({...data})
             toast({
                 title: '✅ Success',
                 description: 'Your profile has been successfully updated.',

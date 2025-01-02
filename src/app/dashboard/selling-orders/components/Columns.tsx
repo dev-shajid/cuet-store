@@ -28,18 +28,18 @@ export const columns: ColumnDef<Partial<Order>>[] = [
             <span>{formatCurrency(row.getValue("total_amount"))}</span>
         ),
     },
-    // {
-    //     accessorKey: "status",
-    //     header: "Status",
-    //     cell: ({ row }) => {
-    //         const status = row.getValue("status") as OrderStatus;
-    //         return (
-    //             <Badge variant="outline" className={`capitalize ${GetStatusClass(status)}`}>
-    //                 {status}
-    //             </Badge>
-    //         )
-    //     },
-    // },
+    {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+            const status = row.getValue("status") as OrderStatus;
+            return (
+                <Badge variant="outline" className={`capitalize ${GetStatusClass(status)}`}>
+                    {status}
+                </Badge>
+            )
+        },
+    },
     {
         accessorKey: "created_at",
         header: ({ column }) => (

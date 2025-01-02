@@ -127,7 +127,7 @@ export default function CategoryForm({ initialCategory }: CategoryFormProps) {
             <PageHeader
                 title={title}
                 button={initialCategory ? true : false}
-                button_label='Delte'
+                button_label='Delete'
                 disabled={isLoading}
                 variant='destructive'
                 onClick={() => setOpen(true)}

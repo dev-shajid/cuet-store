@@ -182,7 +182,7 @@ export default function ProductForm({ initialProduct }: ProductFormProps) {
             <PageHeader
                 title={title}
                 button={initialProduct ? true : false}
-                button_label='Delte'
+                button_label='Delete'
                 disabled={isLoading}
                 variant='destructive'
                 onClick={() => setOpen(true)}

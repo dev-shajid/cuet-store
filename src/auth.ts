@@ -17,11 +17,11 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   callbacks: {
     async jwt(data) {
       const { token, user, trigger, session } = data
-
       if (trigger === 'update') {
+        console.log("Update", {session})
         return {
           ...token,
-          ...session
+          ...session,
         };
       }
       if (user) {
@@ -37,6 +37,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
         session.user.id = token.sub
         session.user.name = token.name
         session.user.role = token.role as UserRole
+        session.user.image = token.image as string
       }
       // console.log({ session })
 

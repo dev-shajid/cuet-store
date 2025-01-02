@@ -455,21 +455,36 @@ export const getProduct = AsyncHandler(async (id: string, include?: { [key: stri
 })
 
 export const createProduct = AsyncHandler(async (product: z.infer<typeof ProductSchema> & { images: string[] }): Promise<ApiResponseType<null>> => {
-    const res = await getAuthUser();
-    console.log('User: ', res)
+    const user = await getAuthUser();
+
+    if (user.data.role !== UserRole.ADMIN) {
+        if (product.is_featured) {
+            const featuredProductsCount = await db.product.count({
+                where: {
+                    seller_email: user.data.email,
+                    is_featured: true,
+                },
+            });
+
+            if (featuredProductsCount >= 5) {
+                return ApiResponse(400, "You can only have a maximum of 5 featured products.");
+            }
+        }
+    }
+
     await db.product.create({
         data: {
             ...product,
-            seller_email: res.data.email,
+            seller_email: user.data.email,
             images: {
                 createMany: {
-                    data: product.images.map((image: string) => ({ url: image }))
-                }
-            }
-        }
-    })
+                    data: product.images.map((image: string) => ({ url: image })),
+                },
+            },
+        },
+    });
 
-    return ApiResponse(200, "Product created successfully")
+    return ApiResponse(200, "Product created successfully");
 });
 
 export const seedProducts = AsyncHandler(async () => {
@@ -485,15 +500,34 @@ export const seedProducts = AsyncHandler(async () => {
 });
 
 export const updateProduct = AsyncHandler(async (id: string, product: z.infer<typeof ProductSchema> & { images: string[] }): Promise<ApiResponseType<null>> => {
+    const user = await getAuthUser();
     const existProduct = await db.product.findFirst({
         where: {
             id,
-            seller_email: (await getAuthUser()).data.email
+            seller_email: user.data.email
         }
     });
-    if (!existProduct) return ApiResponse(400, "Product does not exists");
+    if (!existProduct) return ApiResponse(400, "Product does not exist");
 
-    const { images, ...productData } = product
+    if (user.data.role !== UserRole.ADMIN) {
+        if (product.is_featured) {
+            const featuredProductsCount = await db.product.count({
+                where: {
+                    seller_email: user.data.email,
+                    is_featured: true,
+                    NOT: {
+                        id: id
+                    }
+                },
+            });
+
+            if (featuredProductsCount >= 5) {
+                return ApiResponse(400, "You can only have a maximum of 5 featured products.");
+            }
+        }
+    }
+
+    const { images, ...productData } = product;
     await db.product.update({
         where: {
             id
@@ -501,7 +535,7 @@ export const updateProduct = AsyncHandler(async (id: string, product: z.infer<ty
         data: {
             ...productData,
         }
-    })
+    });
 
     await db.product.update({
         where: {
@@ -516,10 +550,10 @@ export const updateProduct = AsyncHandler(async (id: string, product: z.infer<ty
                 }
             }
         }
-    })
+    });
 
-    return ApiResponse(200, "Product updated successfully")
-})
+    return ApiResponse(200, "Product updated successfully");
+});
 
 export const deleteProduct = AsyncHandler(async (id: string): Promise<ApiResponseType<null>> => {
     await db.product.delete({
@@ -601,7 +635,7 @@ export const getSellingOrders = AsyncHandler(async (
     const page = Number(query?.page ?? 1);
 
     // Search functionality
-    let whereClause = {}
+    let whereClause={};
     whereClause = {
         order_items: {
             some: {
@@ -649,6 +683,7 @@ export const getSellingOrders = AsyncHandler(async (
                 quantity: true,
                 price: true,
                 total_amount: true,
+                status: true,
                 created_at: true,
                 product: true
             }
@@ -664,7 +699,7 @@ export const getSellingOrders = AsyncHandler(async (
     const offset = (page - 1) * limit;
 
     // Fetch data from the database
-    const [order, total_count] = await Promise.all([
+    const [orders, total_count] = await Promise.all([
         db.order.findMany({
             where: whereClause,
             orderBy: orderByClause,
@@ -677,6 +712,13 @@ export const getSellingOrders = AsyncHandler(async (
         }),
     ]);
 
+    // Determine the status of each order based on its order items
+    const updatedOrders = orders.map(order => {
+        const hasPendingItems = order.order_items.some(item => item.status === OrderStatus.PENDING);
+        const status = hasPendingItems ? OrderStatus.PENDING : OrderStatus.COMPLETED;
+        return { ...order, status };
+    });
+
     // Pagination info
     const total_pages = Math.ceil(total_count / limit);
     const has_next = page < total_pages;
@@ -684,7 +726,7 @@ export const getSellingOrders = AsyncHandler(async (
 
     // Build the response structure
     const response_data: TableDataType<Partial<OrderItem>> = {
-        data: order,
+        data: updatedOrders,
         totalCounts: total_count,
         totalPages: total_pages,
         hasNextPage: has_next,
@@ -842,6 +884,7 @@ export const getBuyingOrders = AsyncHandler(async (
                 quantity: true,
                 price: true,
                 total_amount: true,
+                status: true,
                 created_at: true,
                 product: {
                     select: {
@@ -884,6 +927,13 @@ export const getBuyingOrders = AsyncHandler(async (
         }),
     ]);
 
+    // Determine the status of each order based on its order items
+    const updatedOrders = orders.map(order => {
+        const hasPendingItems = order.order_items.some(item => item.status === OrderStatus.PENDING);
+        const status = hasPendingItems ? OrderStatus.PENDING : OrderStatus.COMPLETED;
+        return { ...order, status };
+    });
+
     // Pagination info
     const total_pages = Math.ceil(total_count / limit);
     const has_next = page < total_pages;
@@ -891,7 +941,7 @@ export const getBuyingOrders = AsyncHandler(async (
 
     // Build the response structure
     const response_data: TableDataType<Partial<Order>> = {
-        data: orders,
+        data: updatedOrders,
         totalCounts: total_count,
         totalPages: total_pages,
         hasNextPage: has_next,
